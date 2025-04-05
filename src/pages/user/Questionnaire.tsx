@@ -23,51 +23,102 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
+import { Clock, Upload } from "lucide-react";
+import { TimeInput } from "@/components/TimeInput";
 
 const Questionnaire = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Personal Information
+    fullName: "",
     age: "",
-    gender: "",
     height: "",
     weight: "",
-    activityLevel: "",
+    sex: "",
+    workingHours: { start: "", end: "" },
     
-    // Health Information
+    // Medical Information
+    healthConcerns: "",
     medicalConditions: [] as string[],
-    allergies: [] as string[],
-    medications: "",
+    otherCondition: "",
     
-    // Dietary Information
-    dietType: "",
-    mealFrequency: "",
-    waterIntake: "",
-    foodPreferences: "",
-    foodDislikes: "",
+    // Lifestyle Information
+    foodHabit: "",
+    wakeupTime: "",
+    sleepTime: "",
+    meals: [{ time: "", description: "" }],
     
-    // Goals
-    healthGoal: "",
-    targetWeight: "",
-    timeframe: "",
-    additionalInfo: "",
+    // Physical Activity
+    activityType: "",
+    activityTime: "",
+    activityDuration: "",
+    
+    // Work & Study
+    profession: "",
+    leaveHomeTime: "",
+    returnHomeTime: "",
+    breakTimes: "",
+    
+    // Photos
+    photos: [] as File[],
   });
 
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleChange = (field: string, value: string | string[]) => {
+  const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCheckboxChange = (value: string, field: "medicalConditions" | "allergies") => {
+  const handleCheckboxChange = (value: string) => {
     setFormData((prev) => {
-      const currentValues = [...prev[field]];
+      const currentValues = [...prev.medicalConditions];
       if (currentValues.includes(value)) {
-        return { ...prev, [field]: currentValues.filter(item => item !== value) };
+        return { ...prev, medicalConditions: currentValues.filter(item => item !== value) };
       } else {
-        return { ...prev, [field]: [...currentValues, value] };
+        return { ...prev, medicalConditions: [...currentValues, value] };
       }
+    });
+  };
+
+  const handleMealChange = (index: number, field: 'time' | 'description', value: string) => {
+    setFormData(prev => {
+      const updatedMeals = [...prev.meals];
+      updatedMeals[index] = { ...updatedMeals[index], [field]: value };
+      return { ...prev, meals: updatedMeals };
+    });
+  };
+
+  const addMeal = () => {
+    setFormData(prev => ({
+      ...prev,
+      meals: [...prev.meals, { time: "", description: "" }]
+    }));
+  };
+
+  const removeMeal = (index: number) => {
+    setFormData(prev => {
+      const updatedMeals = [...prev.meals];
+      updatedMeals.splice(index, 1);
+      return { ...prev, meals: updatedMeals.length ? updatedMeals : [{ time: "", description: "" }] };
+    });
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const filesArray = Array.from(event.target.files);
+      setFormData(prev => ({
+        ...prev,
+        photos: [...prev.photos, ...filesArray]
+      }));
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setFormData(prev => {
+      const updatedPhotos = [...prev.photos];
+      updatedPhotos.splice(index, 1);
+      return { ...prev, photos: updatedPhotos };
     });
   };
 
@@ -85,7 +136,7 @@ const Questionnaire = () => {
     // In a real app, submit data to backend
     console.log("Form submitted:", formData);
     toast({
-      title: "Questionnaire Submitted",
+      title: "Health Assessment Submitted",
       description: "Thank you for completing your health assessment. Your dietitian will review your information.",
     });
     navigate("/user/dashboard");
@@ -120,9 +171,9 @@ const Questionnaire = () => {
               currentStep >= step ? "text-nourish-primary" : "text-gray-400"
             }`}>
               {step === 1 && "Personal"}
-              {step === 2 && "Health"}
-              {step === 3 && "Diet"}
-              {step === 4 && "Goals"}
+              {step === 2 && "Medical"}
+              {step === 3 && "Lifestyle"}
+              {step === 4 && "Work & Photos"}
             </span>
           </div>
         ))}
@@ -149,7 +200,17 @@ const Questionnaire = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  value={formData.fullName}
+                  onChange={(e) => handleChange("fullName", e.target.value)}
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="age">Age</Label>
                   <Input
@@ -162,10 +223,10 @@ const Questionnaire = () => {
                 </div>
                 
                 <div>
-                  <Label>Gender</Label>
+                  <Label>Sex</Label>
                   <RadioGroup
-                    value={formData.gender}
-                    onValueChange={(value) => handleChange("gender", value)}
+                    value={formData.sex}
+                    onValueChange={(value) => handleChange("sex", value)}
                     className="flex gap-4 pt-2"
                   >
                     <div className="flex items-center space-x-2">
@@ -176,53 +237,58 @@ const Questionnaire = () => {
                       <RadioGroupItem value="female" id="female" />
                       <Label htmlFor="female">Female</Label>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="other" id="other" />
+                      <Label htmlFor="other">Other</Label>
+                    </div>
                   </RadioGroup>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="height">Height</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="height"
-                      value={formData.height}
-                      onChange={(e) => handleChange("height", e.target.value)}
-                      placeholder="cm"
-                    />
-                  </div>
+                  <Input
+                    id="height"
+                    value={formData.height}
+                    onChange={(e) => handleChange("height", e.target.value)}
+                    placeholder="cm or ft/in"
+                  />
                 </div>
                 
                 <div>
                   <Label htmlFor="weight">Weight</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="weight"
-                      value={formData.weight}
-                      onChange={(e) => handleChange("weight", e.target.value)}
-                      placeholder="kg"
-                    />
-                  </div>
+                  <Input
+                    id="weight"
+                    value={formData.weight}
+                    onChange={(e) => handleChange("weight", e.target.value)}
+                    placeholder="kg or lbs"
+                  />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="activityLevel">Activity Level</Label>
-                <Select 
-                  value={formData.activityLevel}
-                  onValueChange={(value) => handleChange("activityLevel", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your activity level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sedentary">Sedentary (little or no exercise)</SelectItem>
-                    <SelectItem value="light">Lightly active (light exercise 1-3 days/week)</SelectItem>
-                    <SelectItem value="moderate">Moderately active (moderate exercise 3-5 days/week)</SelectItem>
-                    <SelectItem value="active">Active (hard exercise 6-7 days/week)</SelectItem>
-                    <SelectItem value="very_active">Very active (very hard exercise & physical job)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Working Hours (If applicable)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <Label htmlFor="workStart" className="text-sm text-muted-foreground">Start Time</Label>
+                    <TimeInput
+                      id="workStart"
+                      value={formData.workingHours.start}
+                      onChange={(value) => handleChange("workingHours", { ...formData.workingHours, start: value })}
+                      placeholder="HH:MM AM/PM"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="workEnd" className="text-sm text-muted-foreground">End Time</Label>
+                    <TimeInput
+                      id="workEnd"
+                      value={formData.workingHours.end}
+                      onChange={(value) => handleChange("workingHours", { ...formData.workingHours, end: value })}
+                      placeholder="HH:MM AM/PM"
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </>
@@ -231,52 +297,55 @@ const Questionnaire = () => {
         {currentStep === 2 && (
           <>
             <CardHeader>
-              <CardTitle>Health Information</CardTitle>
+              <CardTitle>Medical History</CardTitle>
               <CardDescription>
                 Please tell us about any health conditions or concerns
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="mb-2 block">Medical Conditions</Label>
-                <div className="space-y-2">
-                  {["Diabetes", "Hypertension", "Heart Disease", "IBS", "Celiac Disease", "None"].map((condition) => (
+                <Label htmlFor="healthConcerns">Please describe any current health concerns or complaints in detail:</Label>
+                <Textarea
+                  id="healthConcerns"
+                  value={formData.healthConcerns}
+                  onChange={(e) => handleChange("healthConcerns", e.target.value)}
+                  placeholder="Enter your health concerns here"
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Do you have any of the following conditions?</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {["High Blood Pressure (BP)", "Diabetes", "High Cholesterol", "Asthma", "Hypothyroidism", "Acidity", "Constipation"].map((condition) => (
                     <div className="flex items-center space-x-2" key={condition}>
                       <Checkbox
                         id={condition}
                         checked={formData.medicalConditions.includes(condition)}
-                        onCheckedChange={() => handleCheckboxChange(condition, "medicalConditions")}
+                        onCheckedChange={() => handleCheckboxChange(condition)}
                       />
-                      <Label htmlFor={condition}>{condition}</Label>
+                      <Label htmlFor={condition} className="text-sm">{condition}</Label>
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">Allergies or Food Intolerances</Label>
-                <div className="space-y-2">
-                  {["Dairy", "Gluten", "Nuts", "Seafood", "Eggs", "None"].map((allergy) => (
-                    <div className="flex items-center space-x-2" key={allergy}>
-                      <Checkbox
-                        id={allergy}
-                        checked={formData.allergies.includes(allergy)}
-                        onCheckedChange={() => handleCheckboxChange(allergy, "allergies")}
-                      />
-                      <Label htmlFor={allergy}>{allergy}</Label>
-                    </div>
-                  ))}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="otherCondition"
+                      checked={formData.medicalConditions.includes("Other")}
+                      onCheckedChange={() => handleCheckboxChange("Other")}
+                    />
+                    <Label htmlFor="otherCondition" className="text-sm">Other (please specify)</Label>
+                  </div>
+                  {formData.medicalConditions.includes("Other") && (
+                    <Input
+                      className="mt-2"
+                      value={formData.otherCondition}
+                      onChange={(e) => handleChange("otherCondition", e.target.value)}
+                      placeholder="Please specify other condition"
+                    />
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="medications">Current Medications</Label>
-                <Textarea
-                  id="medications"
-                  value={formData.medications}
-                  onChange={(e) => handleChange("medications", e.target.value)}
-                  placeholder="List any medications you're currently taking"
-                />
               </div>
             </CardContent>
           </>
@@ -285,87 +354,138 @@ const Questionnaire = () => {
         {currentStep === 3 && (
           <>
             <CardHeader>
-              <CardTitle>Dietary Information</CardTitle>
+              <CardTitle>Lifestyle & Daily Routine</CardTitle>
               <CardDescription>
-                Tell us about your current diet and preferences
+                Tell us about your daily habits and lifestyle
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="dietType">Current Diet Type</Label>
+                <Label htmlFor="foodHabit">Food Habits</Label>
                 <Select 
-                  value={formData.dietType}
-                  onValueChange={(value) => handleChange("dietType", value)}
+                  value={formData.foodHabit}
+                  onValueChange={(value) => handleChange("foodHabit", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select your current diet" />
+                    <SelectValue placeholder="Select your food habit" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="omnivore">Omnivore (Everything)</SelectItem>
                     <SelectItem value="vegetarian">Vegetarian</SelectItem>
+                    <SelectItem value="non-vegetarian">Non-Vegetarian</SelectItem>
                     <SelectItem value="vegan">Vegan</SelectItem>
-                    <SelectItem value="pescatarian">Pescatarian</SelectItem>
-                    <SelectItem value="keto">Keto</SelectItem>
-                    <SelectItem value="paleo">Paleo</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.foodHabit === "other" && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Please specify your food habit"
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="wakeupTime">What time do you wake up?</Label>
+                  <TimeInput
+                    id="wakeupTime"
+                    value={formData.wakeupTime}
+                    onChange={(value) => handleChange("wakeupTime", value)}
+                    placeholder="HH:MM AM/PM"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="sleepTime">What time do you go to sleep?</Label>
+                  <TimeInput
+                    id="sleepTime"
+                    value={formData.sleepTime}
+                    onChange={(value) => handleChange("sleepTime", value)}
+                    placeholder="HH:MM AM/PM"
+                  />
+                </div>
               </div>
 
               <div>
-                <Label htmlFor="mealFrequency">How many meals do you eat per day?</Label>
-                <Select 
-                  value={formData.mealFrequency}
-                  onValueChange={(value) => handleChange("mealFrequency", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select meal frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1-2">1-2 meals</SelectItem>
-                    <SelectItem value="3">3 meals</SelectItem>
-                    <SelectItem value="4-5">4-5 meals</SelectItem>
-                    <SelectItem value="6+">6+ meals</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex justify-between items-center mb-2">
+                  <Label>Daily Meal Timings & Quantity</Label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addMeal}
+                  >
+                    Add Meal
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {formData.meals.map((meal, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <TimeInput
+                          value={meal.time}
+                          onChange={(value) => handleMealChange(index, 'time', value)}
+                          placeholder="Time"
+                        />
+                      </div>
+                      <div className="flex-[3]">
+                        <Input
+                          value={meal.description}
+                          onChange={(e) => handleMealChange(index, 'description', e.target.value)}
+                          placeholder="Meal description (e.g. 1 cup Tea)"
+                        />
+                      </div>
+                      {formData.meals.length > 1 && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeMeal(index)}
+                          className="flex-shrink-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Example: 6:00 AM - 1 cup Tea, 8:00 AM - 1 Dosa with Sambar</p>
               </div>
 
               <div>
-                <Label htmlFor="waterIntake">Daily Water Intake</Label>
-                <Select 
-                  value={formData.waterIntake}
-                  onValueChange={(value) => handleChange("waterIntake", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select water intake" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="less_than_1L">Less than 1L</SelectItem>
-                    <SelectItem value="1L_to_2L">1-2 liters</SelectItem>
-                    <SelectItem value="2L_to_3L">2-3 liters</SelectItem>
-                    <SelectItem value="more_than_3L">More than 3 liters</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="foodPreferences">Food Preferences</Label>
-                <Textarea
-                  id="foodPreferences"
-                  value={formData.foodPreferences}
-                  onChange={(e) => handleChange("foodPreferences", e.target.value)}
-                  placeholder="List foods you particularly enjoy"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="foodDislikes">Food Dislikes</Label>
-                <Textarea
-                  id="foodDislikes"
-                  value={formData.foodDislikes}
-                  onChange={(e) => handleChange("foodDislikes", e.target.value)}
-                  placeholder="List foods you dislike or avoid"
-                />
+                <Label className="mb-2 block">Physical Activity</Label>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="activityType" className="text-sm text-muted-foreground">Type of Activity</Label>
+                    <Input 
+                      id="activityType"
+                      value={formData.activityType} 
+                      onChange={(e) => handleChange("activityType", e.target.value)}
+                      placeholder="Yoga, Gym, Walk, etc."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="activityTime" className="text-sm text-muted-foreground">Time</Label>
+                      <TimeInput
+                        id="activityTime"
+                        value={formData.activityTime}
+                        onChange={(value) => handleChange("activityTime", value)}
+                        placeholder="HH:MM AM/PM"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="activityDuration" className="text-sm text-muted-foreground">Duration (minutes)</Label>
+                      <Input
+                        id="activityDuration"
+                        type="number"
+                        value={formData.activityDuration}
+                        onChange={(e) => handleChange("activityDuration", e.target.value)}
+                        placeholder="Duration in minutes"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </>
@@ -374,74 +494,117 @@ const Questionnaire = () => {
         {currentStep === 4 && (
           <>
             <CardHeader>
-              <CardTitle>Your Goals</CardTitle>
+              <CardTitle>Work Schedule & Photos</CardTitle>
               <CardDescription>
-                Help us understand what you want to achieve
+                Tell us about your work schedule and upload photos if you'd like
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="healthGoal">Primary Health Goal</Label>
+                <Label htmlFor="profession">Profession</Label>
                 <Select 
-                  value={formData.healthGoal}
-                  onValueChange={(value) => handleChange("healthGoal", value)}
+                  value={formData.profession}
+                  onValueChange={(value) => handleChange("profession", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select your main goal" />
+                    <SelectValue placeholder="Select your profession" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="weight_loss">Weight Loss</SelectItem>
-                    <SelectItem value="weight_gain">Weight Gain</SelectItem>
-                    <SelectItem value="maintenance">Weight Maintenance</SelectItem>
-                    <SelectItem value="muscle_building">Muscle Building</SelectItem>
-                    <SelectItem value="improve_health">Improve Overall Health</SelectItem>
-                    <SelectItem value="manage_condition">Manage Health Condition</SelectItem>
-                    <SelectItem value="increase_energy">Increase Energy Levels</SelectItem>
+                    <SelectItem value="working">Working Professional</SelectItem>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {(formData.healthGoal === "weight_loss" || formData.healthGoal === "weight_gain") && (
+              {formData.profession === "working" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="leaveHomeTime">What time do you leave home?</Label>
+                    <TimeInput
+                      id="leaveHomeTime"
+                      value={formData.leaveHomeTime}
+                      onChange={(value) => handleChange("leaveHomeTime", value)}
+                      placeholder="HH:MM AM/PM"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="returnHomeTime">What time do you return?</Label>
+                    <TimeInput
+                      id="returnHomeTime"
+                      value={formData.returnHomeTime}
+                      onChange={(value) => handleChange("returnHomeTime", value)}
+                      placeholder="HH:MM AM/PM"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {formData.profession === "student" && (
                 <div>
-                  <Label htmlFor="targetWeight">Target Weight</Label>
-                  <Input
-                    id="targetWeight"
-                    type="text"
-                    value={formData.targetWeight}
-                    onChange={(e) => handleChange("targetWeight", e.target.value)}
-                    placeholder="kg"
+                  <Label htmlFor="breakTimes">What are your break/interval timings?</Label>
+                  <Textarea
+                    id="breakTimes"
+                    value={formData.breakTimes}
+                    onChange={(e) => handleChange("breakTimes", e.target.value)}
+                    placeholder="Specify all break times during school/college"
+                    rows={3}
                   />
                 </div>
               )}
 
               <div>
-                <Label htmlFor="timeframe">Expected Timeframe</Label>
-                <Select 
-                  value={formData.timeframe}
-                  onValueChange={(value) => handleChange("timeframe", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timeframe" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1_month">1 month</SelectItem>
-                    <SelectItem value="3_months">3 months</SelectItem>
-                    <SelectItem value="6_months">6 months</SelectItem>
-                    <SelectItem value="1_year">1 year</SelectItem>
-                    <SelectItem value="ongoing">Ongoing</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <Label className="mb-2 block">Photo Submission (Optional but recommended)</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Please upload 3 standing photos (Front, Side, Back) and 1 close-up of your face.
+                </p>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <Label 
+                    htmlFor="photoUpload" 
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-md hover:bg-gray-50 cursor-pointer"
+                  >
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">Click to upload photos</p>
+                      <p className="text-xs text-gray-400">Front, Side, Back and Face</p>
+                    </div>
+                    <Input 
+                      id="photoUpload" 
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </Label>
+                </div>
 
-              <div>
-                <Label htmlFor="additionalInfo">Additional Information</Label>
-                <Textarea
-                  id="additionalInfo"
-                  value={formData.additionalInfo}
-                  onChange={(e) => handleChange("additionalInfo", e.target.value)}
-                  placeholder="Anything else you'd like your dietitian to know?"
-                  rows={4}
-                />
+                {formData.photos.length > 0 && (
+                  <div className="mt-4">
+                    <Label className="mb-2 block">Uploaded Photos</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {formData.photos.map((photo, index) => (
+                        <div key={index} className="relative">
+                          <img 
+                            src={URL.createObjectURL(photo)} 
+                            alt={`Uploaded photo ${index + 1}`}
+                            className="h-24 w-full object-cover rounded-md"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-5 w-5 rounded-full"
+                            onClick={() => removePhoto(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </>
