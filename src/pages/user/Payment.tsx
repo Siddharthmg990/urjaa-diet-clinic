@@ -63,7 +63,7 @@ const subscriptionPlans = [
   }
 ];
 
-const PaymentPage = () => {
+const Payment = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("creditCard");
