@@ -23,7 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import { Clock, Upload } from "lucide-react";
+import { Clock, Upload, X } from "lucide-react";
 import { TimeInput } from "@/components/TimeInput";
 
 const Questionnaire = () => {
@@ -33,7 +33,9 @@ const Questionnaire = () => {
     fullName: "",
     age: "",
     height: "",
+    heightUnit: "feet", // Default to feet
     weight: "",
+    weightUnit: "kg", // Default to kg
     sex: "",
     workingHours: { start: "", end: "" },
     
@@ -132,6 +134,12 @@ const Questionnaire = () => {
     window.scrollTo(0, 0);
   };
 
+  // New function for direct navigation to a step
+  const goToStep = (step: number) => {
+    setCurrentStep(step);
+    window.scrollTo(0, 0);
+  };
+
   const handleSubmit = () => {
     // In a real app, submit data to backend
     console.log("Form submitted:", formData);
@@ -146,15 +154,13 @@ const Questionnaire = () => {
     return (
       <div className="flex justify-between items-center mb-8 bg-nourish-light p-3 rounded-lg">
         {[1, 2, 3, 4].map((step) => (
-          <div 
+          <button 
             key={step}
-            className={`flex-1 text-center ${
-              currentStep === step 
-                ? "text-nourish-primary font-bold" 
-                : currentStep > step 
-                  ? "text-nourish-primary" 
-                  : "text-gray-400"
+            onClick={() => step < currentStep ? goToStep(step) : undefined}
+            className={`flex-1 flex flex-col items-center ${
+              step <= currentStep ? "cursor-pointer" : "cursor-not-allowed"
             }`}
+            disabled={step > currentStep}
           >
             <div 
               className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center ${
@@ -175,7 +181,7 @@ const Questionnaire = () => {
               {step === 3 && "Lifestyle"}
               {step === 4 && "Work & Photos"}
             </span>
-          </div>
+          </button>
         ))}
       </div>
     );
@@ -248,22 +254,52 @@ const Questionnaire = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="height">Height</Label>
-                  <Input
-                    id="height"
-                    value={formData.height}
-                    onChange={(e) => handleChange("height", e.target.value)}
-                    placeholder="cm or ft/in"
-                  />
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      id="height"
+                      value={formData.height}
+                      onChange={(e) => handleChange("height", e.target.value)}
+                      placeholder="Enter your height"
+                      className="flex-1"
+                    />
+                    <Select 
+                      value={formData.heightUnit}
+                      onValueChange={(value) => handleChange("heightUnit", value)}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue placeholder="Unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="feet">ft/in</SelectItem>
+                        <SelectItem value="cm">cm</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 
                 <div>
                   <Label htmlFor="weight">Weight</Label>
-                  <Input
-                    id="weight"
-                    value={formData.weight}
-                    onChange={(e) => handleChange("weight", e.target.value)}
-                    placeholder="kg or lbs"
-                  />
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      id="weight"
+                      value={formData.weight}
+                      onChange={(e) => handleChange("weight", e.target.value)}
+                      placeholder="Enter your weight"
+                      className="flex-1"
+                    />
+                    <Select 
+                      value={formData.weightUnit}
+                      onValueChange={(value) => handleChange("weightUnit", value)}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue placeholder="Unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="kg">kg</SelectItem>
+                        <SelectItem value="lbs">lbs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -294,6 +330,7 @@ const Questionnaire = () => {
           </>
         )}
 
+        {/* Medical History Section */}
         {currentStep === 2 && (
           <>
             <CardHeader>
@@ -351,6 +388,7 @@ const Questionnaire = () => {
           </>
         )}
 
+        {/* Lifestyle Section */}
         {currentStep === 3 && (
           <>
             <CardHeader>
@@ -491,6 +529,7 @@ const Questionnaire = () => {
           </>
         )}
 
+        {/* Work & Photos Section */}
         {currentStep === 4 && (
           <>
             <CardHeader>
