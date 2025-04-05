@@ -53,8 +53,17 @@ const DietitianLayout = () => {
       >
         <div className="flex flex-col h-full">
           <div className="p-4 border-b border-nourish-light">
-            <h1 className="text-2xl font-bold text-nourish-primary">Nourish</h1>
-            <p className="text-sm text-nourish-dark">Dietitian: {user?.name}</p>
+            <div className="flex items-center">
+              <img 
+                src="/lovable-uploads/f7765fc9-936c-46a5-ae43-a10b6865058a.png" 
+                alt="Urjaa Diet Clinic Logo" 
+                className="h-10 mr-2"
+              />
+              <div>
+                <h1 className="text-lg font-bold text-nourish-primary">Urjaa Diet Clinic</h1>
+                <p className="text-sm text-nourish-dark">Dietitian: {user?.name}</p>
+              </div>
+            </div>
           </div>
 
           <nav className="flex-grow overflow-y-auto py-4">

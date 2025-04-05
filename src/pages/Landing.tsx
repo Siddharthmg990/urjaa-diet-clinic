@@ -25,7 +25,11 @@ const Landing = () => {
       <header className="bg-white shadow-sm">
         <div className="container mx-auto flex justify-between items-center py-4 px-4">
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-nourish-primary">Nourish</h1>
+            <img 
+              src="/lovable-uploads/f7765fc9-936c-46a5-ae43-a10b6865058a.png" 
+              alt="Urjaa Diet Clinic Logo" 
+              className="h-12 mr-2"
+            />
           </div>
           <div className="flex space-x-2">
             {!isAuthenticated ? (
@@ -64,7 +68,7 @@ const Landing = () => {
               Your Personal Journey to Better Health
             </h1>
             <p className="text-lg md:text-xl text-gray-700 mb-8">
-              Connect with expert dietitians, get personalized meal plans, and track your progress
+              Connect with expert dietitians at Urjaa Diet Clinic, get personalized meal plans, and track your progress
               all in one place. Start your journey to a healthier you today.
             </p>
             <Button
@@ -127,12 +131,19 @@ const Landing = () => {
       <footer className="bg-nourish-dark text-white py-8">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <h2 className="text-xl font-bold">Nourish</h2>
-              <p className="text-sm opacity-75">Your partner in healthy living</p>
+            <div className="mb-4 md:mb-0 flex items-center">
+              <img 
+                src="/lovable-uploads/f7765fc9-936c-46a5-ae43-a10b6865058a.png" 
+                alt="Urjaa Diet Clinic Logo" 
+                className="h-10 mr-3"
+              />
+              <div>
+                <h2 className="text-xl font-bold">Urjaa Diet Clinic</h2>
+                <p className="text-sm opacity-75">Your partner in healthy living</p>
+              </div>
             </div>
             <div className="text-sm opacity-75">
-              &copy; {new Date().getFullYear()} Nourish Connect Wellbeing. All rights reserved.
+              &copy; {new Date().getFullYear()} Urjaa Diet Clinic. All rights reserved.
             </div>
           </div>
         </div>
