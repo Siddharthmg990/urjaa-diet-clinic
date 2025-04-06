@@ -17,7 +17,7 @@ import { QuestionnaireStepIndicator } from "./questionnaire/QuestionnaireStepInd
 import { PersonalInfoSection } from "./questionnaire/PersonalInfoSection";
 import { MedicalSection } from "./questionnaire/MedicalSection";
 import { LifestyleSection } from "./questionnaire/LifestyleSection";
-import { WorkPhotoSection } from "./questionnaire/WorkPhotoSection";
+import { DocumentsReportsSection } from "./questionnaire/DocumentsReportsSection";
 import { QuestionnaireFormData } from "./questionnaire/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -41,15 +41,17 @@ const Questionnaire = () => {
     otherCondition: "",
     
     // Lifestyle Information
-    foodHabit: "",
+    dietType: "", // renamed from foodHabit
     wakeupTime: "",
     sleepTime: "",
     meals: [{ time: "", description: "" }],
     
-    // Physical Activity
-    activityType: "",
-    activityTime: "",
-    activityDuration: "",
+    // Physical Activities - changed to support multiple activities
+    activities: [{ 
+      type: "",
+      time: "",
+      duration: ""
+    }],
     
     // Work & Study
     profession: "",
@@ -57,8 +59,9 @@ const Questionnaire = () => {
     returnHomeTime: "",
     breakTimes: "",
     
-    // Photos
+    // Photos & Reports
     photos: [] as File[],
+    medicalReports: [] as File[],
   });
 
   const navigate = useNavigate();
@@ -97,11 +100,28 @@ const Questionnaire = () => {
     });
   };
 
+  const handleActivityChange = (index: number, field: 'type' | 'time' | 'duration', value: string) => {
+    setFormData(prev => {
+      const updatedActivities = [...prev.activities];
+      updatedActivities[index] = { ...updatedActivities[index], [field]: value };
+      return { ...prev, activities: updatedActivities };
+    });
+  };
+
   const addMeal = () => {
     setFormData(prev => ({
       ...prev,
       meals: [...prev.meals, { time: "", description: "" }]
     }));
+  };
+
+  const addActivity = () => {
+    if (formData.activities.length < 2) {
+      setFormData(prev => ({
+        ...prev,
+        activities: [...prev.activities, { type: "", time: "", duration: "" }]
+      }));
+    }
   };
 
   const removeMeal = (index: number) => {
@@ -112,21 +132,38 @@ const Questionnaire = () => {
     });
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const removeActivity = (index: number) => {
+    setFormData(prev => {
+      const updatedActivities = [...prev.activities];
+      updatedActivities.splice(index, 1);
+      return { ...prev, activities: updatedActivities.length ? updatedActivities : [{ type: "", time: "", duration: "" }] };
+    });
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fileType: "photos" | "medicalReports") => {
     if (event.target.files) {
       const filesArray = Array.from(event.target.files);
       setFormData(prev => ({
         ...prev,
-        photos: [...prev.photos, ...filesArray]
+        [fileType]: [...prev[fileType], ...filesArray]
       }));
+
+      // Clear validation error if files were added
+      if (errors[fileType] && filesArray.length > 0) {
+        setErrors(prev => {
+          const updatedErrors = { ...prev };
+          delete updatedErrors[fileType];
+          return updatedErrors;
+        });
+      }
     }
   };
 
-  const removePhoto = (index: number) => {
+  const removeFile = (index: number, fileType: "photos" | "medicalReports") => {
     setFormData(prev => {
-      const updatedPhotos = [...prev.photos];
-      updatedPhotos.splice(index, 1);
-      return { ...prev, photos: updatedPhotos };
+      const updatedFiles = [...prev[fileType]];
+      updatedFiles.splice(index, 1);
+      return { ...prev, [fileType]: updatedFiles };
     });
   };
 
@@ -157,8 +194,8 @@ const Questionnaire = () => {
       }
     } else if (step === 3) {
       // Validate Lifestyle Section
-      if (!formData.foodHabit.trim()) {
-        newErrors.foodHabit = "Food habit is required";
+      if (!formData.dietType.trim()) {
+        newErrors.dietType = "Diet type is required";
       }
       if (!formData.wakeupTime.trim()) {
         newErrors.wakeupTime = "Wake up time is required";
@@ -169,10 +206,41 @@ const Questionnaire = () => {
       if (!formData.meals[0].time || !formData.meals[0].description) {
         newErrors.meals = "At least one meal is required";
       }
-    } else if (step === 4) {
-      // Validate Work & Photos Section
+      
+      // Validate activities
+      formData.activities.forEach((activity, index) => {
+        if (!activity.type) {
+          newErrors[`activities.${index}.type`] = "Activity type is required";
+        }
+        if (!activity.time) {
+          newErrors[`activities.${index}.time`] = "Activity time is required";
+        }
+        if (!activity.duration) {
+          newErrors[`activities.${index}.duration`] = "Activity duration is required";
+        }
+      });
+      
+      // Validate profession and related fields
       if (!formData.profession) {
         newErrors.profession = "Profession is required";
+      }
+      
+      if (formData.profession === "working" || formData.profession === "other") {
+        if (!formData.leaveHomeTime) {
+          newErrors.leaveHomeTime = "Leave home time is required";
+        }
+        if (!formData.returnHomeTime) {
+          newErrors.returnHomeTime = "Return home time is required";
+        }
+      }
+      
+      if (formData.profession === "student" && !formData.breakTimes) {
+        newErrors.breakTimes = "Break times are required";
+      }
+    } else if (step === 4) {
+      // Validate Documents & Reports Section
+      if (formData.photos.length === 0) {
+        newErrors.photos = "At least one photo is required";
       }
     }
     
@@ -273,6 +341,9 @@ const Questionnaire = () => {
                 handleMealChange={handleMealChange}
                 addMeal={addMeal}
                 removeMeal={removeMeal}
+                handleActivityChange={handleActivityChange}
+                addActivity={addActivity}
+                removeActivity={removeActivity}
                 errors={errors}
               />
             </CardContent>
@@ -282,17 +353,16 @@ const Questionnaire = () => {
         return (
           <>
             <CardHeader>
-              <CardTitle>Work Schedule & Photos</CardTitle>
+              <CardTitle>Documents & Reports</CardTitle>
               <CardDescription>
-                Tell us about your work schedule and upload photos if you'd like
+                Upload photos and medical reports for a comprehensive assessment
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <WorkPhotoSection 
-                formData={formData} 
-                handleChange={handleChange}
+              <DocumentsReportsSection 
+                formData={formData}
                 handleFileChange={handleFileChange}
-                removePhoto={removePhoto}
+                removeFile={removeFile}
                 errors={errors}
               />
             </CardContent>

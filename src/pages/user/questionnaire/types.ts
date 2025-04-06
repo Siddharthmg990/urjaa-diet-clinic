@@ -16,22 +16,25 @@ export interface QuestionnaireFormData {
   otherCondition: string;
   
   // Lifestyle Information
-  foodHabit: string;
+  dietType: string;  // renamed from foodHabit
   wakeupTime: string;
   sleepTime: string;
   meals: { time: string; description: string }[];
   
-  // Physical Activity
-  activityType: string;
-  activityTime: string;
-  activityDuration: string;
+  // Physical Activity - updated to support multiple activities
+  activities: {
+    type: string;
+    time: string;
+    duration: string; // Now will be selected from dropdown
+  }[];
   
-  // Work & Study
+  // Work & Study - moved to lifestyle section
   profession: string;
   leaveHomeTime: string;
   returnHomeTime: string;
   breakTimes: string;
   
-  // Photos
+  // Photos & Reports - renamed from just Photos
   photos: File[];
+  medicalReports: File[]; // New field for medical reports
 }
