@@ -1,8 +1,9 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { ArrowLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,9 +19,11 @@ import { MedicalSection } from "./questionnaire/MedicalSection";
 import { LifestyleSection } from "./questionnaire/LifestyleSection";
 import { WorkPhotoSection } from "./questionnaire/WorkPhotoSection";
 import { QuestionnaireFormData } from "./questionnaire/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Questionnaire = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<QuestionnaireFormData>({
     // Personal Information
     fullName: "",
@@ -60,9 +63,19 @@ const Questionnaire = () => {
 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    // Clear validation error when field is filled
+    if (errors[field] && value) {
+      setErrors(prev => {
+        const updatedErrors = { ...prev };
+        delete updatedErrors[field];
+        return updatedErrors;
+      });
+    }
   };
 
   const handleCheckboxChange = (value: string) => {
@@ -117,9 +130,61 @@ const Questionnaire = () => {
     });
   };
 
+  const validateStep = (step: number): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    if (step === 1) {
+      // Validate Personal Info Section
+      if (!formData.fullName.trim()) {
+        newErrors.fullName = "Full name is required";
+      }
+      if (!formData.age) {
+        newErrors.age = "Age is required";
+      }
+      if (!formData.height.trim()) {
+        newErrors.height = "Height is required";
+      }
+      if (!formData.weight.trim()) {
+        newErrors.weight = "Weight is required";
+      }
+      if (!formData.sex) {
+        newErrors.sex = "Sex is required";
+      }
+    } else if (step === 2) {
+      // Validate Medical Section
+      if (!formData.healthConcerns.trim()) {
+        newErrors.healthConcerns = "Health concerns are required";
+      }
+    } else if (step === 3) {
+      // Validate Lifestyle Section
+      if (!formData.foodHabit.trim()) {
+        newErrors.foodHabit = "Food habit is required";
+      }
+      if (!formData.wakeupTime.trim()) {
+        newErrors.wakeupTime = "Wake up time is required";
+      }
+      if (!formData.sleepTime.trim()) {
+        newErrors.sleepTime = "Sleep time is required";
+      }
+      if (!formData.meals[0].time || !formData.meals[0].description) {
+        newErrors.meals = "At least one meal is required";
+      }
+    } else if (step === 4) {
+      // Validate Work & Photos Section
+      if (!formData.profession) {
+        newErrors.profession = "Profession is required";
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleNext = () => {
-    setCurrentStep((prev) => prev + 1);
-    window.scrollTo(0, 0);
+    if (validateStep(currentStep)) {
+      setCurrentStep((prev) => prev + 1);
+      window.scrollTo(0, 0);
+    }
   };
 
   const handlePrevious = () => {
@@ -127,13 +192,23 @@ const Questionnaire = () => {
     window.scrollTo(0, 0);
   };
 
-  // Function for direct navigation to a step
-  const goToStep = (step: number) => {
-    setCurrentStep(step);
-    window.scrollTo(0, 0);
+  const navigateBack = () => {
+    navigate("/user/dashboard");
   };
 
+  // Function for direct navigation to a step
+  const goToStep = useCallback((step: number) => {
+    if (step < currentStep) {
+      setCurrentStep(step);
+      window.scrollTo(0, 0);
+    }
+  }, [currentStep]);
+
   const handleSubmit = () => {
+    if (!validateStep(currentStep)) {
+      return;
+    }
+    
     // In a real app, submit data to backend
     console.log("Form submitted:", formData);
     toast({
@@ -158,6 +233,7 @@ const Questionnaire = () => {
               <PersonalInfoSection 
                 formData={formData} 
                 handleChange={handleChange} 
+                errors={errors}
               />
             </CardContent>
           </>
@@ -176,6 +252,7 @@ const Questionnaire = () => {
                 formData={formData} 
                 handleChange={handleChange}
                 handleCheckboxChange={handleCheckboxChange}
+                errors={errors}
               />
             </CardContent>
           </>
@@ -196,6 +273,7 @@ const Questionnaire = () => {
                 handleMealChange={handleMealChange}
                 addMeal={addMeal}
                 removeMeal={removeMeal}
+                errors={errors}
               />
             </CardContent>
           </>
@@ -215,6 +293,7 @@ const Questionnaire = () => {
                 handleChange={handleChange}
                 handleFileChange={handleFileChange}
                 removePhoto={removePhoto}
+                errors={errors}
               />
             </CardContent>
           </>
@@ -225,30 +304,53 @@ const Questionnaire = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-12">
-      <h1 className="text-3xl font-bold text-nourish-dark mb-2">Health Assessment</h1>
+    <div className={`max-w-2xl mx-auto pb-12 px-4 ${isMobile ? 'pt-4' : 'pt-0'}`}>
+      <div className="flex items-center mb-4">
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="mr-2"
+          onClick={navigateBack}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Dashboard
+        </Button>
+      </div>
+
+      <h1 className="text-2xl md:text-3xl font-bold text-nourish-dark mb-2">Health Assessment</h1>
       <p className="text-gray-600 mb-6">
         Complete this questionnaire to help us create your personalized nutrition plan.
       </p>
 
       <QuestionnaireStepIndicator currentStep={currentStep} goToStep={goToStep} />
 
-      <Card>
+      <Card className="mt-6">
         {renderCurrentSection()}
         
-        <CardFooter className="flex justify-between">
+        <CardFooter className={`flex justify-between ${isMobile ? 'flex-col gap-3' : ''}`}>
           <Button
             variant="outline"
             onClick={handlePrevious}
             disabled={currentStep === 1}
+            className={isMobile ? "w-full" : ""}
           >
             Previous
           </Button>
           
           {currentStep < 4 ? (
-            <Button onClick={handleNext}>Next</Button>
+            <Button 
+              onClick={handleNext}
+              className={isMobile ? "w-full" : ""}
+            >
+              Next
+            </Button>
           ) : (
-            <Button onClick={handleSubmit}>Submit</Button>
+            <Button 
+              onClick={handleSubmit}
+              className={isMobile ? "w-full" : ""}
+            >
+              Submit
+            </Button>
           )}
         </CardFooter>
       </Card>

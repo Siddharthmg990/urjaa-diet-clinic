@@ -10,12 +10,14 @@ interface MedicalSectionProps {
   formData: QuestionnaireFormData;
   handleChange: (field: string, value: any) => void;
   handleCheckboxChange: (value: string) => void;
+  errors: Record<string, string>;
 }
 
 export const MedicalSection: React.FC<MedicalSectionProps> = ({ 
   formData, 
   handleChange, 
-  handleCheckboxChange 
+  handleCheckboxChange,
+  errors
 }) => {
   const medicalConditions = [
     "High Blood Pressure (BP)", 
@@ -30,17 +32,26 @@ export const MedicalSection: React.FC<MedicalSectionProps> = ({
   return (
     <>
       <div>
-        <Label htmlFor="healthConcerns">Please describe any current health concerns or complaints in detail:</Label>
+        <Label htmlFor="healthConcerns" className="flex items-center mb-1">
+          Please describe any current health concerns or complaints in detail: <span className="text-red-500 ml-1">*</span>
+        </Label>
         <Textarea
           id="healthConcerns"
           value={formData.healthConcerns}
           onChange={(e) => handleChange("healthConcerns", e.target.value)}
-          placeholder="Enter your health concerns here"
+          placeholder="For Instance:
+Low back pain since 2019
+Facial acne since Jan 2025"
           rows={4}
+          required
+          className={errors.healthConcerns ? "border-red-500" : ""}
         />
+        {errors.healthConcerns && (
+          <p className="text-red-500 text-sm mt-1">{errors.healthConcerns}</p>
+        )}
       </div>
 
-      <div>
+      <div className="mt-4">
         <Label className="mb-2 block">Do you have any of the following conditions?</Label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {medicalConditions.map((condition) => (
