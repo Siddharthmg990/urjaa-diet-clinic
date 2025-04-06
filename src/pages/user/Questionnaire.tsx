@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import { QuestionnaireStepIndicator } from "./questionnaire/QuestionnaireStepInd
 import { PersonalInfoSection } from "./questionnaire/PersonalInfoSection";
 import { MedicalSection } from "./questionnaire/MedicalSection";
 import { LifestyleSection } from "./questionnaire/LifestyleSection";
+import { DailyRoutineSection } from "./questionnaire/DailyRoutineSection";
 import { DocumentsReportsSection } from "./questionnaire/DocumentsReportsSection";
 import { QuestionnaireFormData } from "./questionnaire/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -25,41 +25,31 @@ const Questionnaire = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<QuestionnaireFormData>({
-    // Personal Information
     fullName: "",
     age: "",
     height: "",
-    heightUnit: "feet", // Default to feet
+    heightUnit: "feet",
     weight: "",
-    weightUnit: "kg", // Default to kg
+    weightUnit: "kg",
     sex: "",
     workingHours: { start: "", end: "" },
-    
-    // Medical Information
     healthConcerns: "",
     medicalConditions: [] as string[],
     otherCondition: "",
-    
-    // Lifestyle Information
-    dietType: "", // renamed from foodHabit
+    dietType: "",
     wakeupTime: "",
     sleepTime: "",
     meals: [{ time: "", description: "" }],
-    
-    // Physical Activities - changed to support multiple activities
+    profession: "",
+    occupation: "",
+    leaveHomeTime: "",
+    returnHomeTime: "",
+    breakTimes: "",
     activities: [{ 
       type: "",
       time: "",
       duration: ""
     }],
-    
-    // Work & Study
-    profession: "",
-    leaveHomeTime: "",
-    returnHomeTime: "",
-    breakTimes: "",
-    
-    // Photos & Reports
     photos: [] as File[],
     medicalReports: [] as File[],
   });
@@ -71,7 +61,6 @@ const Questionnaire = () => {
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     
-    // Clear validation error when field is filled
     if (errors[field] && value) {
       setErrors(prev => {
         const updatedErrors = { ...prev };
@@ -148,7 +137,6 @@ const Questionnaire = () => {
         [fileType]: [...prev[fileType], ...filesArray]
       }));
 
-      // Clear validation error if files were added
       if (errors[fileType] && filesArray.length > 0) {
         setErrors(prev => {
           const updatedErrors = { ...prev };
@@ -171,7 +159,6 @@ const Questionnaire = () => {
     const newErrors: Record<string, string> = {};
     
     if (step === 1) {
-      // Validate Personal Info Section
       if (!formData.fullName.trim()) {
         newErrors.fullName = "Full name is required";
       }
@@ -188,12 +175,10 @@ const Questionnaire = () => {
         newErrors.sex = "Sex is required";
       }
     } else if (step === 2) {
-      // Validate Medical Section
       if (!formData.healthConcerns.trim()) {
         newErrors.healthConcerns = "Health concerns are required";
       }
     } else if (step === 3) {
-      // Validate Lifestyle Section
       if (!formData.dietType.trim()) {
         newErrors.dietType = "Diet type is required";
       }
@@ -207,7 +192,6 @@ const Questionnaire = () => {
         newErrors.meals = "At least one meal is required";
       }
       
-      // Validate activities
       formData.activities.forEach((activity, index) => {
         if (!activity.type) {
           newErrors[`activities.${index}.type`] = "Activity type is required";
@@ -219,13 +203,16 @@ const Questionnaire = () => {
           newErrors[`activities.${index}.duration`] = "Activity duration is required";
         }
       });
-      
-      // Validate profession and related fields
+    } else if (step === 4) {
       if (!formData.profession) {
         newErrors.profession = "Profession is required";
       }
       
-      if (formData.profession === "working" || formData.profession === "other") {
+      if (formData.profession && !formData.occupation) {
+        newErrors.occupation = "Occupation is required";
+      }
+      
+      if (formData.profession === "working" || formData.profession === "other" || formData.profession === "student") {
         if (!formData.leaveHomeTime) {
           newErrors.leaveHomeTime = "Leave home time is required";
         }
@@ -237,8 +224,7 @@ const Questionnaire = () => {
       if (formData.profession === "student" && !formData.breakTimes) {
         newErrors.breakTimes = "Break times are required";
       }
-    } else if (step === 4) {
-      // Validate Documents & Reports Section
+    } else if (step === 5) {
       if (formData.photos.length === 0) {
         newErrors.photos = "At least one photo is required";
       }
@@ -264,7 +250,6 @@ const Questionnaire = () => {
     navigate("/user/dashboard");
   };
 
-  // Function for direct navigation to a step
   const goToStep = useCallback((step: number) => {
     if (step < currentStep) {
       setCurrentStep(step);
@@ -277,7 +262,6 @@ const Questionnaire = () => {
       return;
     }
     
-    // In a real app, submit data to backend
     console.log("Form submitted:", formData);
     toast({
       title: "Health Assessment Submitted",
@@ -329,9 +313,9 @@ const Questionnaire = () => {
         return (
           <>
             <CardHeader>
-              <CardTitle>Lifestyle & Daily Routine</CardTitle>
+              <CardTitle>Lifestyle & Eating Habits</CardTitle>
               <CardDescription>
-                Tell us about your daily habits and lifestyle
+                Tell us about your diet and daily habits
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -350,6 +334,24 @@ const Questionnaire = () => {
           </>
         );
       case 4:
+        return (
+          <>
+            <CardHeader>
+              <CardTitle>Daily Routine</CardTitle>
+              <CardDescription>
+                Tell us about your work and daily schedule
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <DailyRoutineSection
+                formData={formData}
+                handleChange={handleChange}
+                errors={errors}
+              />
+            </CardContent>
+          </>
+        );
+      case 5:
         return (
           <>
             <CardHeader>
@@ -392,7 +394,7 @@ const Questionnaire = () => {
         Complete this questionnaire to help us create your personalized nutrition plan.
       </p>
 
-      <QuestionnaireStepIndicator currentStep={currentStep} goToStep={goToStep} />
+      <QuestionnaireStepIndicator currentStep={currentStep} goToStep={goToStep} totalSteps={5} />
 
       <Card className="mt-6">
         {renderCurrentSection()}
@@ -407,7 +409,7 @@ const Questionnaire = () => {
             Previous
           </Button>
           
-          {currentStep < 4 ? (
+          {currentStep < 5 ? (
             <Button 
               onClick={handleNext}
               className={isMobile ? "w-full" : ""}

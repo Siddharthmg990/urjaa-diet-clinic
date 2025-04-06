@@ -4,15 +4,19 @@ import React from "react";
 interface QuestionnaireStepIndicatorProps {
   currentStep: number;
   goToStep: (step: number) => void;
+  totalSteps: number;
 }
 
 export const QuestionnaireStepIndicator: React.FC<QuestionnaireStepIndicatorProps> = ({ 
   currentStep, 
-  goToStep 
+  goToStep,
+  totalSteps = 5 // Default to 5 steps
 }) => {
+  const steps = Array.from({ length: totalSteps }, (_, i) => i + 1);
+  
   return (
     <div className="flex justify-between items-center mb-8 bg-nourish-light p-3 rounded-lg">
-      {[1, 2, 3, 4].map((step) => (
+      {steps.map((step) => (
         <button 
           key={step}
           onClick={() => step < currentStep ? goToStep(step) : undefined}
@@ -38,7 +42,8 @@ export const QuestionnaireStepIndicator: React.FC<QuestionnaireStepIndicatorProp
             {step === 1 && "Personal"}
             {step === 2 && "Medical"}
             {step === 3 && "Lifestyle"}
-            {step === 4 && "Work & Photos"}
+            {step === 4 && "Routine"}
+            {step === 5 && "Documents"}
           </span>
         </button>
       ))}
