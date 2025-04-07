@@ -31,8 +31,8 @@ export const LifestyleSection: React.FC<LifestyleSectionProps> = ({
   removeActivity,
   errors
 }) => {
-  // Duration options for the dropdown
-  const durationOptions = Array.from({ length: 9 }, (_, i) => `${(i + 1) * 15}`);
+  // Fix: Generate duration options using a defined array
+  const durationOptions = ["15", "30", "45", "60", "75", "90", "105", "120", "135"];
 
   return (
     <>
