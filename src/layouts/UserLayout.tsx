@@ -42,10 +42,10 @@ const UserLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Mobile sidebar toggle */}
+      {/* Mobile sidebar toggle (moved to top left) */}
       <button 
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed z-50 bottom-4 right-4 p-3 rounded-full bg-nourish-primary text-white md:hidden shadow-lg"
+        className="fixed z-50 top-4 left-4 p-3 rounded-full bg-nourish-primary text-white md:hidden shadow-lg"
       >
         {sidebarOpen ? <X /> : <Menu />}
       </button>
@@ -121,7 +121,7 @@ const UserLayout = () => {
           />
         )}
         
-        <div className="container mx-auto py-6 px-4">
+        <div className="container mx-auto py-6 px-4 mt-4 md:mt-0">
           <Outlet />
         </div>
       </main>

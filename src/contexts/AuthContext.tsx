@@ -17,6 +17,9 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  registerWithGoogle: () => Promise<void>;
+  verifyPhone: (phone: string, otp: string, name?: string) => Promise<void>;
   logout: () => void;
   isDietitian: () => boolean;
 }
@@ -102,13 +105,115 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       toast({
         title: "Registration successful",
-        description: `Welcome to Nourish, ${name}!`,
+        description: `Welcome to Urjaa Diet Clinic, ${name}!`,
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Registration failed",
         description: "Please try again later",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock Google login - in a real app this would use Google OAuth
+      const userData: User = {
+        id: `google_${Math.random().toString(36).substring(2, 11)}`,
+        email: `user${Math.floor(Math.random() * 1000)}@gmail.com`,
+        name: "Google User",
+        role: "user"
+      };
+      
+      setUser(userData);
+      localStorage.setItem("nourish-user", JSON.stringify(userData));
+      
+      toast({
+        title: "Google login successful",
+        description: `Welcome back, ${userData.name}!`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Google login failed",
+        description: "Please try again later",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registerWithGoogle = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock Google registration
+      const userData: User = {
+        id: `google_${Math.random().toString(36).substring(2, 11)}`,
+        email: `user${Math.floor(Math.random() * 1000)}@gmail.com`,
+        name: "Google User",
+        role: "user"
+      };
+      
+      setUser(userData);
+      localStorage.setItem("nourish-user", JSON.stringify(userData));
+      
+      toast({
+        title: "Registration successful",
+        description: `Welcome to Urjaa Diet Clinic, ${userData.name}!`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Google registration failed",
+        description: "Please try again later",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyPhone = async (phone: string, otp: string, name?: string) => {
+    setIsLoading(true);
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock phone verification
+      const userData: User = {
+        id: `phone_${Math.random().toString(36).substring(2, 11)}`,
+        email: `${phone}@phone-user.com`, // Create a pseudo-email for consistency
+        name: name || `User ${phone.substring(phone.length - 4)}`,
+        role: "user"
+      };
+      
+      setUser(userData);
+      localStorage.setItem("nourish-user", JSON.stringify(userData));
+      
+      toast({
+        title: name ? "Registration successful" : "Login successful",
+        description: `Welcome ${name ? "to Urjaa Diet Clinic" : "back"}, ${userData.name}!`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Phone verification failed",
+        description: "Invalid OTP. Please try again.",
       });
       throw error;
     } finally {
@@ -135,6 +240,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isLoading,
         login,
         register,
+        loginWithGoogle,
+        registerWithGoogle,
+        verifyPhone,
         logout,
         isDietitian,
       }}
