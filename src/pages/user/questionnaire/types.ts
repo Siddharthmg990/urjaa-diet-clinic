@@ -8,6 +8,7 @@ export interface QuestionnaireFormData {
   weight: string;
   weightUnit: "kg" | "lbs";
   sex: string;
+  city: string; // Added city field
   workingHours: { start: string; end: string };
   
   // Medical Information

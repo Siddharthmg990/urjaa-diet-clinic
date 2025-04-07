@@ -4,14 +4,28 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TimeInput } from "@/components/TimeInput";
 import { QuestionnaireFormData } from "./types";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PersonalInfoSectionProps {
   formData: QuestionnaireFormData;
   handleChange: (field: string, value: any) => void;
   errors: Record<string, string>;
 }
+
+// Common Indian cities for autocomplete
+const popularCities = [
+  "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata", 
+  "Ahmedabad", "Pune", "Surat", "Jaipur", "Lucknow", "Kanpur", 
+  "Nagpur", "Indore", "Thane", "Bhopal", "Visakhapatnam", "Patna", 
+  "Vadodara", "Ghaziabad", "Ludhiana", "Coimbatore", "Agra", "Madurai", 
+  "Nashik", "Faridabad", "Meerut", "Rajkot", "Varanasi", "Srinagar", 
+  "Aurangabad", "Dhanbad", "Amritsar", "Allahabad", "Ranchi", "Howrah", 
+  "Jabalpur", "Gwalior", "Vijayawada", "Jodhpur", "Raipur", "Kota"
+];
 
 export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({ 
   formData, 
@@ -23,6 +37,8 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
     const value = e.target.value.replace(/[^0-9]/g, '');
     handleChange("age", value);
   };
+
+  const [open, setOpen] = React.useState(false);
 
   return (
     <>
@@ -40,6 +56,53 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
         />
         {errors.fullName && (
           <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="city" className="flex items-center">
+          City of Residence <span className="text-red-500 ml-1">*</span>
+        </Label>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <div className={`flex h-10 w-full items-center justify-between rounded-md border ${errors.city ? "border-red-500" : "border-input"} bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer`}>
+              {formData.city ? (
+                <span>{formData.city}</span>
+              ) : (
+                <span className="text-muted-foreground">Select city...</span>
+              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0">
+            <Command>
+              <CommandInput placeholder="Search city..." className="h-9" />
+              <CommandEmpty>No city found.</CommandEmpty>
+              <CommandGroup className="max-h-64 overflow-y-auto">
+                {popularCities.map((city) => (
+                  <CommandItem
+                    key={city}
+                    value={city}
+                    onSelect={(currentValue) => {
+                      handleChange("city", currentValue);
+                      setOpen(false);
+                    }}
+                  >
+                    {city}
+                    <Check
+                      className={cn(
+                        "ml-auto h-4 w-4",
+                        formData.city === city ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {errors.city && (
+          <p className="text-red-500 text-sm mt-1">{errors.city}</p>
         )}
       </div>
 
@@ -152,30 +215,6 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
           {errors.weight && (
             <p className="text-red-500 text-sm mt-1">{errors.weight}</p>
           )}
-        </div>
-      </div>
-
-      <div>
-        <Label>Working Hours (If applicable)</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-          <div>
-            <Label htmlFor="workStart" className="text-sm text-muted-foreground">Start Time</Label>
-            <TimeInput
-              id="workStart"
-              value={formData.workingHours.start}
-              onChange={(value) => handleChange("workingHours", { ...formData.workingHours, start: value })}
-              placeholder="HH:MM AM/PM"
-            />
-          </div>
-          <div>
-            <Label htmlFor="workEnd" className="text-sm text-muted-foreground">End Time</Label>
-            <TimeInput
-              id="workEnd"
-              value={formData.workingHours.end}
-              onChange={(value) => handleChange("workingHours", { ...formData.workingHours, end: value })}
-              placeholder="HH:MM AM/PM"
-            />
-          </div>
         </div>
       </div>
     </>

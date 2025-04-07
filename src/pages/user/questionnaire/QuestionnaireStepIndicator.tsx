@@ -41,8 +41,8 @@ export const QuestionnaireStepIndicator: React.FC<QuestionnaireStepIndicatorProp
           }`}>
             {step === 1 && "Personal"}
             {step === 2 && "Medical"}
-            {step === 3 && "Lifestyle"}
-            {step === 4 && "Routine"}
+            {step === 3 && "Occupation"}
+            {step === 4 && "Lifestyle"}
             {step === 5 && "Documents"}
           </span>
         </button>

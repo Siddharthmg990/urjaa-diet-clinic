@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const Questionnaire = () => {
     weight: "",
     weightUnit: "kg",
     sex: "",
+    city: "", // Added city field
     workingHours: { start: "", end: "" },
     healthConcerns: "",
     medicalConditions: [] as string[],
@@ -162,6 +164,9 @@ const Questionnaire = () => {
       if (!formData.fullName.trim()) {
         newErrors.fullName = "Full name is required";
       }
+      if (!formData.city) {
+        newErrors.city = "City is required";
+      }
       if (!formData.age) {
         newErrors.age = "Age is required";
       }
@@ -179,6 +184,28 @@ const Questionnaire = () => {
         newErrors.healthConcerns = "Health concerns are required";
       }
     } else if (step === 3) {
+      if (!formData.profession) {
+        newErrors.profession = "Profession is required";
+      }
+      
+      // Only require occupation if profession is not homemaker
+      if (formData.profession && formData.profession !== "homemaker" && !formData.occupation) {
+        newErrors.occupation = "Occupation is required";
+      }
+      
+      if (formData.profession === "working" || formData.profession === "other" || formData.profession === "student") {
+        if (!formData.leaveHomeTime) {
+          newErrors.leaveHomeTime = "Leave home time is required";
+        }
+        if (!formData.returnHomeTime) {
+          newErrors.returnHomeTime = "Return home time is required";
+        }
+      }
+      
+      if (formData.profession === "student" && !formData.breakTimes) {
+        newErrors.breakTimes = "Break times are required";
+      }
+    } else if (step === 4) {
       if (!formData.dietType.trim()) {
         newErrors.dietType = "Diet type is required";
       }
@@ -203,27 +230,6 @@ const Questionnaire = () => {
           newErrors[`activities.${index}.duration`] = "Activity duration is required";
         }
       });
-    } else if (step === 4) {
-      if (!formData.profession) {
-        newErrors.profession = "Profession is required";
-      }
-      
-      if (formData.profession && !formData.occupation) {
-        newErrors.occupation = "Occupation is required";
-      }
-      
-      if (formData.profession === "working" || formData.profession === "other" || formData.profession === "student") {
-        if (!formData.leaveHomeTime) {
-          newErrors.leaveHomeTime = "Leave home time is required";
-        }
-        if (!formData.returnHomeTime) {
-          newErrors.returnHomeTime = "Return home time is required";
-        }
-      }
-      
-      if (formData.profession === "student" && !formData.breakTimes) {
-        newErrors.breakTimes = "Break times are required";
-      }
     } else if (step === 5) {
       if (formData.photos.length === 0) {
         newErrors.photos = "At least one photo is required";
@@ -313,6 +319,24 @@ const Questionnaire = () => {
         return (
           <>
             <CardHeader>
+              <CardTitle>Occupation</CardTitle>
+              <CardDescription>
+                Tell us about your work and daily schedule
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <DailyRoutineSection
+                formData={formData}
+                handleChange={handleChange}
+                errors={errors}
+              />
+            </CardContent>
+          </>
+        );
+      case 4:
+        return (
+          <>
+            <CardHeader>
               <CardTitle>Lifestyle & Eating Habits</CardTitle>
               <CardDescription>
                 Tell us about your diet and daily habits
@@ -328,24 +352,6 @@ const Questionnaire = () => {
                 handleActivityChange={handleActivityChange}
                 addActivity={addActivity}
                 removeActivity={removeActivity}
-                errors={errors}
-              />
-            </CardContent>
-          </>
-        );
-      case 4:
-        return (
-          <>
-            <CardHeader>
-              <CardTitle>Daily Routine</CardTitle>
-              <CardDescription>
-                Tell us about your work and daily schedule
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <DailyRoutineSection
-                formData={formData}
-                handleChange={handleChange}
                 errors={errors}
               />
             </CardContent>
