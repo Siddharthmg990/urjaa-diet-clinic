@@ -153,10 +153,17 @@ const DietPlans = () => {
       prevPlans.map(plan => {
         if (plan.id === planId) {
           const isCurrentlyRunning = plan.isRunning;
-          const newActivities = [...(plan.activities || []), {
+          // Ensure type safety by explicitly defining the activity type
+          const newActivity: PlanActivity = {
             type: isCurrentlyRunning ? "pause" : "start",
             timestamp: Date.now()
-          }];
+          };
+          
+          // Create a new array of activities with the proper type
+          const newActivities: PlanActivity[] = [
+            ...(plan.activities || []), 
+            newActivity
+          ];
 
           toast({
             title: isCurrentlyRunning ? "Plan Paused" : "Plan Started",
