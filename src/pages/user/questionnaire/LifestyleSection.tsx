@@ -4,9 +4,10 @@ import { Label } from "@/components/ui/label";
 import { TimeInput } from "@/components/TimeInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Activity } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QuestionnaireFormData } from "./types";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface LifestyleSectionProps {
   formData: QuestionnaireFormData;
@@ -31,8 +32,23 @@ export const LifestyleSection: React.FC<LifestyleSectionProps> = ({
   removeActivity,
   errors
 }) => {
-  // Fix: Generate duration options using a defined array
+  // Use fixed array for duration options
   const durationOptions = ["15", "30", "45", "60", "75", "90", "105", "120", "135"];
+  
+  const [noActivity, setNoActivity] = React.useState(false);
+  
+  // Handle no physical activity checkbox
+  const handleNoActivityChange = (checked: boolean) => {
+    setNoActivity(checked);
+    
+    if (checked) {
+      // Clear activities and add a placeholder activity with "None" type
+      handleChange("activities", [{ type: "None", time: "", duration: "0" }]);
+    } else {
+      // Reset to default activity input
+      handleChange("activities", [{ type: "", time: "", duration: "" }]);
+    }
+  };
 
   return (
     <>
@@ -155,17 +171,28 @@ export const LifestyleSection: React.FC<LifestyleSectionProps> = ({
             size="sm" 
             onClick={addActivity} 
             variant="outline"
-            disabled={formData.activities.length >= 2}
+            disabled={formData.activities.length >= 2 || noActivity}
           >
             <Plus className="h-4 w-4 mr-1" /> Add Activity
           </Button>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="no-activity" 
+            checked={noActivity}
+            onCheckedChange={handleNoActivityChange}
+          />
+          <Label htmlFor="no-activity" className="text-sm font-normal cursor-pointer">
+            I don't do any physical activity
+          </Label>
         </div>
 
         {errors.activities && (
           <p className="text-red-500 text-sm">{errors.activities}</p>
         )}
 
-        {formData.activities.map((activity, index) => (
+        {!noActivity && formData.activities.map((activity, index) => (
           <div key={index} className="border rounded-md p-3 space-y-3">
             <div className="flex justify-between items-center">
               <Label className="font-medium">Activity {index + 1}</Label>
@@ -227,6 +254,13 @@ export const LifestyleSection: React.FC<LifestyleSectionProps> = ({
             </div>
           </div>
         ))}
+        
+        {noActivity && (
+          <div className="flex items-center p-3 bg-slate-50 rounded-md">
+            <Activity className="h-5 w-5 text-slate-400 mr-2" />
+            <span className="text-slate-500">No physical activity selected</span>
+          </div>
+        )}
       </div>
     </>
   );

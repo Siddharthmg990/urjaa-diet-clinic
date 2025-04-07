@@ -72,30 +72,6 @@ export const DailyRoutineSection: React.FC<DailyRoutineSectionProps> = ({
         </div>
       )}
 
-      <div>
-        <Label>Working Hours (If applicable)</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-          <div>
-            <Label htmlFor="workStart" className="text-sm text-muted-foreground">Start Time</Label>
-            <TimeInput
-              id="workStart"
-              value={formData.workingHours.start}
-              onChange={(value) => handleChange("workingHours", { ...formData.workingHours, start: value })}
-              placeholder="HH:MM AM/PM"
-            />
-          </div>
-          <div>
-            <Label htmlFor="workEnd" className="text-sm text-muted-foreground">End Time</Label>
-            <TimeInput
-              id="workEnd"
-              value={formData.workingHours.end}
-              onChange={(value) => handleChange("workingHours", { ...formData.workingHours, end: value })}
-              placeholder="HH:MM AM/PM"
-            />
-          </div>
-        </div>
-      </div>
-
       {(formData.profession === "working" || formData.profession === "other" || formData.profession === "student") && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
