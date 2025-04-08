@@ -42,13 +42,19 @@ const UserLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Mobile sidebar toggle (moved to top left) */}
-      <button 
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed z-50 top-4 left-4 p-3 rounded-full bg-nourish-primary text-white md:hidden shadow-lg"
-      >
-        {sidebarOpen ? <X /> : <Menu />}
-      </button>
+      {/* Fixed sidebar header for mobile */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-white border-b p-4 flex items-center md:hidden">
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded-md bg-nourish-primary text-white"
+        >
+          {sidebarOpen ? <X /> : <Menu />}
+        </button>
+        <div className="ml-4">
+          <h1 className="text-lg font-bold text-nourish-primary">Urjaa Diet Clinic</h1>
+          <p className="text-sm text-nourish-dark">Welcome, {user?.name}</p>
+        </div>
+      </div>
 
       {/* Sidebar */}
       <aside 
@@ -121,7 +127,7 @@ const UserLayout = () => {
           />
         )}
         
-        <div className="container mx-auto py-6 px-4 mt-4 md:mt-0">
+        <div className="container mx-auto py-6 px-4 mt-16 md:mt-0 max-w-full overflow-x-hidden">
           <Outlet />
         </div>
       </main>

@@ -219,17 +219,20 @@ const Questionnaire = () => {
         newErrors.meals = "At least one meal is required";
       }
       
-      formData.activities.forEach((activity, index) => {
-        if (!activity.type) {
-          newErrors[`activities.${index}.type`] = "Activity type is required";
-        }
-        if (!activity.time) {
-          newErrors[`activities.${index}.time`] = "Activity time is required";
-        }
-        if (!activity.duration) {
-          newErrors[`activities.${index}.duration`] = "Activity duration is required";
-        }
-      });
+      // Modified validation: Skip activity validation if the first activity type is "None"
+      if (formData.activities.length > 0 && formData.activities[0].type !== "None") {
+        formData.activities.forEach((activity, index) => {
+          if (!activity.type) {
+            newErrors[`activities.${index}.type`] = "Activity type is required";
+          }
+          if (!activity.time) {
+            newErrors[`activities.${index}.time`] = "Activity time is required";
+          }
+          if (!activity.duration) {
+            newErrors[`activities.${index}.duration`] = "Activity duration is required";
+          }
+        });
+      }
     } else if (step === 5) {
       if (formData.photos.length === 0) {
         newErrors.photos = "At least one photo is required";

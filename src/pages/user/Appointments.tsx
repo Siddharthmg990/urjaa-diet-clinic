@@ -17,6 +17,7 @@ import { format, isToday, isAfter, isPast, addDays } from "date-fns";
 import { Calendar as CalendarIcon, Clock, VideoIcon, MapPin, Phone } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Mock data for appointments
 const upcomingAppointments = [
@@ -61,12 +62,13 @@ const pastAppointments = [
   }
 ];
 
-// Available time slots for booking
-const availableTimeSlots = {
-  morning: ["9:00 AM", "10:00 AM", "11:00 AM"],
-  afternoon: ["1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"],
-  evening: ["5:00 PM", "6:00 PM"]
-};
+// Half-hour time slots from 11am to 3pm
+const availableTimeSlots = [
+  "11:00 AM", "11:30 AM", 
+  "12:00 PM", "12:30 PM", 
+  "1:00 PM", "1:30 PM", 
+  "2:00 PM", "2:30 PM"
+];
 
 const Appointments = () => {
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -74,6 +76,7 @@ const Appointments = () => {
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [bookingType, setBookingType] = useState("video");
   const [selectedTime, setSelectedTime] = useState("");
+  const [userAppointments, setUserAppointments] = useState([...upcomingAppointments]);
   const { toast } = useToast();
 
   const handleBookAppointment = () => {
@@ -86,11 +89,40 @@ const Appointments = () => {
       return;
     }
 
+    // Create a new appointment
+    const newAppointment = {
+      id: Date.now(),
+      date: new Date(`${format(date, "yyyy-MM-dd")}T${convertTo24HourFormat(selectedTime)}:00`),
+      dietitianName: "Dr. Sarah Johnson",
+      type: bookingType,
+      duration: 30,
+      status: "requested",
+      notes: "Appointment request pending confirmation"
+    };
+
+    // Add the new appointment to the user's appointments
+    setUserAppointments(prev => [newAppointment, ...prev]);
+
     toast({
       title: "Appointment Requested",
       description: `Your appointment has been requested for ${format(date, "MMMM d, yyyy")} at ${selectedTime}`,
     });
     setShowBookingDialog(false);
+  };
+
+  const convertTo24HourFormat = (time12h: string) => {
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    
+    if (hours === '12') {
+      hours = '00';
+    }
+    
+    if (modifier === 'PM') {
+      hours = String(parseInt(hours, 10) + 12);
+    }
+    
+    return `${hours}:${minutes}`;
   };
 
   const getAppointmentTypeIcon = (type: string) => {
@@ -112,6 +144,8 @@ const Appointments = () => {
         return <Badge className="bg-green-500">Confirmed</Badge>;
       case "pending":
         return <Badge className="bg-yellow-500">Pending</Badge>;
+      case "requested":
+        return <Badge className="bg-blue-500">Requested</Badge>;
       case "completed":
         return <Badge className="bg-gray-500">Completed</Badge>;
       case "cancelled":
@@ -218,38 +252,20 @@ const Appointments = () => {
               
               <div>
                 <h3 className="font-medium mb-2">Select Time</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {availableTimeSlots.morning.map((time) => (
-                    <Button
-                      key={time}
-                      variant={selectedTime === time ? "default" : "outline"}
-                      onClick={() => setSelectedTime(time)}
-                      className={selectedTime === time ? "bg-nourish-primary" : ""}
-                    >
-                      {time}
-                    </Button>
-                  ))}
-                  {availableTimeSlots.afternoon.map((time) => (
-                    <Button
-                      key={time}
-                      variant={selectedTime === time ? "default" : "outline"}
-                      onClick={() => setSelectedTime(time)}
-                      className={selectedTime === time ? "bg-nourish-primary" : ""}
-                    >
-                      {time}
-                    </Button>
-                  ))}
-                  {availableTimeSlots.evening.map((time) => (
-                    <Button
-                      key={time}
-                      variant={selectedTime === time ? "default" : "outline"}
-                      onClick={() => setSelectedTime(time)}
-                      className={selectedTime === time ? "bg-nourish-primary" : ""}
-                    >
-                      {time}
-                    </Button>
-                  ))}
-                </div>
+                <ScrollArea className="h-[180px]">
+                  <div className="grid grid-cols-2 gap-2">
+                    {availableTimeSlots.map((time) => (
+                      <Button
+                        key={time}
+                        variant={selectedTime === time ? "default" : "outline"}
+                        onClick={() => setSelectedTime(time)}
+                        className={selectedTime === time ? "bg-nourish-primary" : ""}
+                      >
+                        {time}
+                      </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
               
               <div>
@@ -284,8 +300,8 @@ const Appointments = () => {
           <TabsTrigger value="past">Past</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
-          {upcomingAppointments.length > 0 ? (
-            upcomingAppointments.map(appointment => renderAppointmentCard(appointment))
+          {userAppointments.length > 0 ? (
+            userAppointments.map(appointment => renderAppointmentCard(appointment))
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-md">
               <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
