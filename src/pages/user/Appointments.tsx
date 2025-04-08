@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -62,7 +61,7 @@ const Appointments = () => {
         .from('appointments')
         .select(`
           *,
-          dietitian:dietitian_id(name)
+          dietitian:profiles!dietitian_id(name)
         `)
         .eq('user_id', user.id)
         .order('appointment_date', { ascending: true });
