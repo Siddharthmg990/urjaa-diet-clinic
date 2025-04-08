@@ -36,18 +36,26 @@ const DietitianLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Mobile sidebar toggle */}
-      <button 
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed z-50 bottom-4 right-4 p-3 rounded-full bg-nourish-primary text-white md:hidden shadow-lg"
-      >
-        {sidebarOpen ? <X /> : <Menu />}
-      </button>
+      {/* Fixed header for mobile */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-white border-b p-4 flex items-center justify-between md:hidden">
+        <div className="flex items-center">
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-md bg-nourish-primary text-white mr-3"
+          >
+            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          <div>
+            <h1 className="text-lg font-bold text-nourish-primary">Urjaa Diet Clinic</h1>
+            <p className="text-sm text-nourish-dark">Dietitian: {user?.name}</p>
+          </div>
+        </div>
+      </div>
 
       {/* Sidebar */}
       <aside 
         className={cn(
-          "w-64 bg-nourish-light border-r border-nourish-light fixed inset-0 z-40 transform transition-transform duration-300 ease-in-out md:translate-x-0",
+          "w-64 bg-nourish-light border-r border-nourish-light fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out md:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -105,7 +113,8 @@ const DietitianLayout = () => {
       {/* Main content */}
       <main className={cn(
         "flex-grow transition-all duration-300 ease-in-out",
-        "md:ml-64" // Always offset on desktop
+        "md:ml-64", // Always offset on desktop
+        "pt-16 md:pt-0" // Padding top for mobile header
       )}>
         {/* Overlay for mobile */}
         {sidebarOpen && (
@@ -115,7 +124,7 @@ const DietitianLayout = () => {
           />
         )}
         
-        <div className="container mx-auto py-6 px-4">
+        <div className="container mx-auto py-6 px-4 max-w-full overflow-x-hidden">
           <Outlet />
         </div>
       </main>

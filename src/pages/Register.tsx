@@ -239,7 +239,7 @@ const Register = () => {
                         id="phone"
                         type="tel"
                         className="rounded-l-none"
-                        placeholder="9876543210"
+                        placeholder="9284735115"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         required

@@ -194,7 +194,7 @@ const Login = () => {
                         id="phone"
                         type="tel"
                         className="rounded-l-none"
-                        placeholder="9876543210"
+                        placeholder="9284735115"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         required
@@ -257,15 +257,6 @@ const Login = () => {
               Sign up
             </Link>
           </p>
-        </div>
-        
-        {/* Demo login info */}
-        <div className="mt-8 border-t border-gray-200 pt-4">
-          <p className="text-sm text-center text-gray-500 font-medium">Demo Logins</p>
-          <div className="text-xs text-center text-gray-500 mt-2 space-y-1">
-            <p>User: any email without "dietitian" (password can be anything)</p>
-            <p>Dietitian: any email with "dietitian" (password can be anything)</p>
-          </div>
         </div>
       </div>
     </div>

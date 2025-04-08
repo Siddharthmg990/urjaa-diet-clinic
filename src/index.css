@@ -95,6 +95,27 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+  
+  /* Custom scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 5px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(142, 50%, 40%); /* Using primary color */
+    border-radius: 5px;
+    transition: background 0.2s ease-in-out;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(142, 50%, 30%); /* Darker shade for hover */
+  }
 }
 
 /* Custom component styles */
