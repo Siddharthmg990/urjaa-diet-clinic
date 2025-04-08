@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { GoogleLogo } from "@/components/GoogleLogo";
 import { PhoneIcon } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const Login = () => {
   // Email login states
@@ -26,6 +27,7 @@ const Login = () => {
   const [activeTab, setActiveTab] = useState("email");
   const { login, loginWithGoogle, verifyPhone } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,12 +36,9 @@ const Login = () => {
 
     try {
       await login(email, password);
-      const redirectPath = email.includes("dietitian") 
-        ? "/dietitian/dashboard" 
-        : "/user/dashboard";
-      navigate(redirectPath);
-    } catch (err) {
-      setError("Failed to log in. Please check your credentials.");
+      // The navigation will happen automatically via AuthContext
+    } catch (err: any) {
+      setError(err.message || "Failed to log in. Please check your credentials.");
     } finally {
       setIsSubmitting(false);
     }
@@ -56,7 +55,12 @@ const Login = () => {
     setError("");
     
     try {
-      // In a real app, this would actually send an OTP
+      // In production, this would call a function to send an OTP
+      // For demo, we'll simulate it
+      toast({
+        title: "OTP Sent",
+        description: `A verification code has been sent to +91 ${phone}`,
+      });
       await new Promise(resolve => setTimeout(resolve, 1000));
       setSentOtp(true);
       setError("");
@@ -79,9 +83,9 @@ const Login = () => {
     
     try {
       await verifyPhone(phone, otp);
-      navigate("/user/dashboard");
-    } catch (err) {
-      setError("Invalid OTP. Please try again.");
+      // The navigation will happen automatically via AuthContext
+    } catch (err: any) {
+      setError(err.message || "Invalid OTP. Please try again.");
     } finally {
       setVerifyingOtp(false);
     }
@@ -90,9 +94,9 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     try {
       await loginWithGoogle();
-      navigate("/user/dashboard");
-    } catch (err) {
-      setError("Failed to log in with Google");
+      // The navigation will happen via redirect and then AuthContext
+    } catch (err: any) {
+      setError(err.message || "Failed to log in with Google");
     }
   };
 

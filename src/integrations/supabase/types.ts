@@ -9,13 +9,331 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          appointment_date: string | null
+          appointment_time: string | null
+          created_at: string | null
+          dietitian_id: string | null
+          id: string
+          notes: string | null
+          reason: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          created_at?: string | null
+          dietitian_id?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          created_at?: string | null
+          dietitian_id?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_dietitian_id_fkey"
+            columns: ["dietitian_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_messages: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          message: string
+          name: string
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          message: string
+          name: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diet_plan_logs: {
+        Row: {
+          action: string
+          diet_plan_id: string | null
+          id: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          diet_plan_id?: string | null
+          id?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          diet_plan_id?: string | null
+          id?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diet_plan_logs_diet_plan_id_fkey"
+            columns: ["diet_plan_id"]
+            isOneToOne: false
+            referencedRelation: "diet_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diet_plan_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diet_plans: {
+        Row: {
+          content: Json
+          created_at: string | null
+          description: string | null
+          dietitian_id: string | null
+          id: string
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: Json
+          created_at?: string | null
+          description?: string | null
+          dietitian_id?: string | null
+          id?: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: Json
+          created_at?: string | null
+          description?: string | null
+          dietitian_id?: string | null
+          id?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diet_plans_dietitian_id_fkey"
+            columns: ["dietitian_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diet_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_assessments: {
+        Row: {
+          activities: Json | null
+          age: string | null
+          break_times: string | null
+          city: string | null
+          created_at: string | null
+          diet_type: string | null
+          full_name: string | null
+          health_concerns: string | null
+          height: string | null
+          height_unit: string | null
+          id: string
+          leave_home_time: string | null
+          meals: Json | null
+          medical_conditions: string[] | null
+          medical_report_urls: string[] | null
+          occupation: string | null
+          other_condition: string | null
+          photo_urls: string[] | null
+          profession: string | null
+          return_home_time: string | null
+          sex: string | null
+          sleep_time: string | null
+          updated_at: string | null
+          user_id: string | null
+          wakeup_time: string | null
+          weight: string | null
+          weight_unit: string | null
+          working_hours: Json | null
+        }
+        Insert: {
+          activities?: Json | null
+          age?: string | null
+          break_times?: string | null
+          city?: string | null
+          created_at?: string | null
+          diet_type?: string | null
+          full_name?: string | null
+          health_concerns?: string | null
+          height?: string | null
+          height_unit?: string | null
+          id?: string
+          leave_home_time?: string | null
+          meals?: Json | null
+          medical_conditions?: string[] | null
+          medical_report_urls?: string[] | null
+          occupation?: string | null
+          other_condition?: string | null
+          photo_urls?: string[] | null
+          profession?: string | null
+          return_home_time?: string | null
+          sex?: string | null
+          sleep_time?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          wakeup_time?: string | null
+          weight?: string | null
+          weight_unit?: string | null
+          working_hours?: Json | null
+        }
+        Update: {
+          activities?: Json | null
+          age?: string | null
+          break_times?: string | null
+          city?: string | null
+          created_at?: string | null
+          diet_type?: string | null
+          full_name?: string | null
+          health_concerns?: string | null
+          height?: string | null
+          height_unit?: string | null
+          id?: string
+          leave_home_time?: string | null
+          meals?: Json | null
+          medical_conditions?: string[] | null
+          medical_report_urls?: string[] | null
+          occupation?: string | null
+          other_condition?: string | null
+          photo_urls?: string[] | null
+          profession?: string | null
+          return_home_time?: string | null
+          sex?: string | null
+          sleep_time?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          wakeup_time?: string | null
+          weight?: string | null
+          weight_unit?: string | null
+          working_hours?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string | null
+          phone: string | null
+          phone_verified: boolean | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          name?: string | null
+          phone?: string | null
+          phone_verified?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          phone_verified?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_diet_plan_elapsed_time: {
+        Args: { plan_id: string }
+        Returns: unknown
+      }
     }
     Enums: {
       [_ in never]: never

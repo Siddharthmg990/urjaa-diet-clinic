@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { GoogleLogo } from "@/components/GoogleLogo";
+import { useToast } from "@/components/ui/use-toast";
 
 const Register = () => {
   // Email registration states
@@ -28,6 +29,7 @@ const Register = () => {
   const [activeTab, setActiveTab] = useState("email");
   const { register, registerWithGoogle, verifyPhone } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +49,9 @@ const Register = () => {
 
     try {
       await register(email, password, name);
-      navigate("/user/questionnaire");
-    } catch (err) {
-      setError("Failed to create an account");
+      // The navigation will happen automatically via AuthContext
+    } catch (err: any) {
+      setError(err.message || "Failed to create an account");
     } finally {
       setIsSubmitting(false);
     }
@@ -71,7 +73,12 @@ const Register = () => {
     setError("");
     
     try {
-      // In a real app, this would actually send an OTP
+      // In production, this would call a function to send an OTP
+      // For demo, we'll simulate it
+      toast({
+        title: "OTP Sent",
+        description: `A verification code has been sent to +91 ${phone}`,
+      });
       await new Promise(resolve => setTimeout(resolve, 1000));
       setSentOtp(true);
       setError("");
@@ -94,9 +101,9 @@ const Register = () => {
     
     try {
       await verifyPhone(phone, otp, phoneRegName);
-      navigate("/user/questionnaire");
-    } catch (err) {
-      setError("Invalid OTP. Please try again.");
+      // The navigation will happen automatically via AuthContext
+    } catch (err: any) {
+      setError(err.message || "Invalid OTP. Please try again.");
     } finally {
       setVerifyingOtp(false);
     }
@@ -105,9 +112,9 @@ const Register = () => {
   const handleGoogleRegistration = async () => {
     try {
       await registerWithGoogle();
-      navigate("/user/questionnaire");
-    } catch (err) {
-      setError("Failed to register with Google");
+      // The navigation will happen via redirect and then AuthContext
+    } catch (err: any) {
+      setError(err.message || "Failed to register with Google");
     }
   };
 

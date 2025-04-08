@@ -18,49 +18,19 @@ import { Calendar as CalendarIcon, Clock, VideoIcon, MapPin, Phone } from "lucid
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Mock data for appointments
-const upcomingAppointments = [
-  {
-    id: 1,
-    date: new Date("2023-10-20T14:00:00"),
-    dietitianName: "Dr. Sarah Johnson",
-    type: "video",
-    duration: 45,
-    status: "confirmed",
-    notes: "Follow-up on Mediterranean diet progress"
-  },
-  {
-    id: 2,
-    date: new Date("2023-11-05T10:30:00"),
-    dietitianName: "Dr. Sarah Johnson",
-    type: "in-person",
-    duration: 60,
-    status: "pending",
-    notes: "Monthly check-in and measurements"
-  }
-];
-
-const pastAppointments = [
-  {
-    id: 3,
-    date: new Date("2023-09-15T11:00:00"),
-    dietitianName: "Dr. Sarah Johnson",
-    type: "video",
-    duration: 45,
-    status: "completed",
-    notes: "Initial consultation and health assessment"
-  },
-  {
-    id: 4,
-    date: new Date("2023-08-30T15:30:00"),
-    dietitianName: "Dr. Michael Chen",
-    type: "phone",
-    duration: 30,
-    status: "completed",
-    notes: "Quick follow-up on food diary"
-  }
-];
+interface Appointment {
+  id: string;
+  date: Date;
+  dietitianName: string;
+  type: "video" | "in-person" | "phone";
+  duration: number;
+  status: "confirmed" | "pending" | "requested" | "completed" | "cancelled";
+  notes: string;
+}
 
 // Half-hour time slots from 11am to 3pm
 const availableTimeSlots = [
@@ -74,10 +44,114 @@ const Appointments = () => {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedTab, setSelectedTab] = useState("upcoming");
   const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [bookingType, setBookingType] = useState("video");
+  const [bookingType, setBookingType] = useState<"video" | "in-person" | "phone">("video");
   const [selectedTime, setSelectedTime] = useState("");
-  const [userAppointments, setUserAppointments] = useState([...upcomingAppointments]);
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch appointments from Supabase
+  const { data: appointments = [], isLoading } = useQuery({
+    queryKey: ['appointments', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          dietitian:dietitian_id(name)
+        `)
+        .eq('user_id', user.id)
+        .order('appointment_date', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        throw error;
+      }
+
+      return data.map(appointment => ({
+        id: appointment.id,
+        date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
+        dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
+        type: appointment.notes?.includes('video') ? 'video' : 
+              appointment.notes?.includes('phone') ? 'phone' : 'in-person',
+        duration: 30,
+        status: appointment.status as "confirmed" | "pending" | "requested" | "completed" | "cancelled",
+        notes: appointment.reason || ""
+      }));
+    },
+    enabled: !!isAuthenticated && !!user?.id
+  });
+
+  // Create appointment mutation
+  const createAppointment = useMutation({
+    mutationFn: async (newAppointment: {
+      appointment_date: string;
+      appointment_time: string;
+      status: string;
+      reason: string;
+      notes: string;
+    }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert({
+          ...newAppointment,
+          user_id: user.id
+        })
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        title: "Appointment Requested",
+        description: `Your appointment has been requested for ${format(date!, "MMMM d, yyyy")} at ${selectedTime}`,
+      });
+      setShowBookingDialog(false);
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to book appointment. Please try again.",
+      });
+      console.error('Error booking appointment:', error);
+    }
+  });
+
+  // Cancel appointment mutation
+  const cancelAppointment = useMutation({
+    mutationFn: async (appointmentId: string) => {
+      const { data, error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        title: "Appointment Cancelled",
+        description: "Your appointment has been cancelled",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to cancel appointment. Please try again.",
+      });
+      console.error('Error cancelling appointment:', error);
+    }
+  });
 
   const handleBookAppointment = () => {
     if (!date || !selectedTime) {
@@ -89,28 +163,22 @@ const Appointments = () => {
       return;
     }
 
-    // Create a new appointment
-    const newAppointment = {
-      id: Date.now(),
-      date: new Date(`${format(date, "yyyy-MM-dd")}T${convertTo24HourFormat(selectedTime)}:00`),
-      dietitianName: "Dr. Sarah Johnson",
-      type: bookingType,
-      duration: 30,
-      status: "requested",
-      notes: "Appointment request pending confirmation"
-    };
-
-    // Add the new appointment to the user's appointments
-    setUserAppointments(prev => [newAppointment, ...prev]);
-
-    toast({
-      title: "Appointment Requested",
-      description: `Your appointment has been requested for ${format(date, "MMMM d, yyyy")} at ${selectedTime}`,
+    createAppointment.mutate({
+      appointment_date: format(date, "yyyy-MM-dd"),
+      appointment_time: selectedTime,
+      status: 'requested',
+      reason: "Consultation request",
+      notes: `${bookingType} session requested`
     });
-    setShowBookingDialog(false);
   };
 
-  const convertTo24HourFormat = (time12h: string) => {
+  const handleCancelAppointment = (id: string) => {
+    if (confirm('Are you sure you want to cancel this appointment?')) {
+      cancelAppointment.mutate(id);
+    }
+  };
+
+  const convertTo24HourFormat = (time12h: string): string => {
     const [time, modifier] = time12h.split(' ');
     let [hours, minutes] = time.split(':');
     
@@ -155,7 +223,15 @@ const Appointments = () => {
     }
   };
 
-  const renderAppointmentCard = (appointment: typeof upcomingAppointments[0]) => {
+  const upcomingAppointments = appointments.filter(
+    appointment => isAfter(appointment.date, new Date()) || isToday(appointment.date)
+  );
+
+  const pastAppointments = appointments.filter(
+    appointment => isPast(appointment.date) && !isToday(appointment.date)
+  );
+
+  const renderAppointmentCard = (appointment: Appointment) => {
     const isUpcoming = isAfter(appointment.date, new Date()) || isToday(appointment.date);
 
     return (
@@ -196,14 +272,19 @@ const Appointments = () => {
             </div>
           )}
         </CardContent>
-        {isUpcoming && (
+        {isUpcoming && appointment.status !== 'cancelled' && (
           <CardFooter className="flex justify-between border-t pt-4">
-            {appointment.type === "video" && (
+            {appointment.type === "video" && appointment.status === "confirmed" && (
               <Button variant="outline" className="flex-1 mr-2">
                 <VideoIcon className="h-4 w-4 mr-2" /> Join Video
               </Button>
             )}
-            <Button variant="destructive" className="flex-1" size="sm">
+            <Button 
+              variant="destructive" 
+              className="flex-1" 
+              size="sm" 
+              onClick={() => handleCancelAppointment(appointment.id)}
+            >
               Cancel
             </Button>
           </CardFooter>
@@ -211,6 +292,14 @@ const Appointments = () => {
       </Card>
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="w-10 h-10 border-4 border-nourish-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -270,7 +359,7 @@ const Appointments = () => {
               
               <div>
                 <h3 className="font-medium mb-2">Appointment Type</h3>
-                <Select value={bookingType} onValueChange={setBookingType}>
+                <Select value={bookingType} onValueChange={(value: "video" | "in-person" | "phone") => setBookingType(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select appointment type" />
                   </SelectTrigger>
@@ -300,8 +389,8 @@ const Appointments = () => {
           <TabsTrigger value="past">Past</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
-          {userAppointments.length > 0 ? (
-            userAppointments.map(appointment => renderAppointmentCard(appointment))
+          {upcomingAppointments.length > 0 ? (
+            upcomingAppointments.map(appointment => renderAppointmentCard(appointment))
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-md">
               <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
