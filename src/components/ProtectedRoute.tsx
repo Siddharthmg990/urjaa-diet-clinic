@@ -14,7 +14,8 @@ const ProtectedRoute = ({ children, requireDietitian = false }: ProtectedRoutePr
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse-slow text-nourish-primary">Loading...</div>
+        <div className="w-16 h-16 border-4 border-nourish-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <div className="ml-3 text-nourish-primary">Loading...</div>
       </div>
     );
   }

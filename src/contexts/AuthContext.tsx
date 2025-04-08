@@ -72,6 +72,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 phone: typedProfile?.phone,
                 phoneVerified: typedProfile?.phone_verified
               });
+
+              // Handle redirection based on authentication event
+              if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                // Only redirect if this is a new sign-in, not just a session refresh
+                if (event === 'SIGNED_IN' && typedProfile) {
+                  if (typedProfile.phone_verified) {
+                    if (typedProfile.role === 'dietitian') {
+                      navigate('/dietitian/dashboard');
+                    } else {
+                      navigate('/user/dashboard');
+                    }
+                  } else {
+                    navigate('/user/questionnaire');
+                  }
+                }
+              }
             } catch (error) {
               console.error('Error fetching user profile:', error);
               setUser({
@@ -148,6 +164,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Login successful",
         description: `Welcome back${data.user?.user_metadata?.name ? ', ' + data.user.user_metadata.name : ''}!`,
       });
+
+      // Redirect will be handled by onAuthStateChange
       
     } catch (error: any) {
       toast({
@@ -175,6 +193,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Registration successful",
         description: `Welcome to Urjaa Diet Clinic, ${name}!`,
       });
+
+      // Redirect will be handled by onAuthStateChange
       
     } catch (error: any) {
       toast({
