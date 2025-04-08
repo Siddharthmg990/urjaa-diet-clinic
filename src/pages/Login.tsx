@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,19 @@ const Login = () => {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   
   const [activeTab, setActiveTab] = useState("email");
-  const { login, loginWithGoogle, verifyPhone } = useAuth();
+  const { login, loginWithGoogle, verifyPhone, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Check if user is already authenticated and redirect if needed
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirectTo = location.state?.from || 
+                        (user?.role === "dietitian" ? "/dietitian/dashboard" : "/user/dashboard");
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, location]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +46,7 @@ const Login = () => {
 
     try {
       await login(email, password);
-      // The navigation will happen automatically via AuthContext
+      // Navigation will happen in the useEffect above when isAuthenticated changes
     } catch (err: any) {
       setError(err.message || "Failed to log in. Please check your credentials.");
     } finally {

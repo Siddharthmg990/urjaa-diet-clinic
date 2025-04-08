@@ -28,20 +28,20 @@ const AuthCallback = () => {
           // Redirect based on profile status
           if (profile?.phone_verified) {
             if (profile.role === 'dietitian') {
-              navigate('/dietitian/dashboard');
+              navigate('/dietitian/dashboard', { replace: true });
             } else {
-              navigate('/user/dashboard');
+              navigate('/user/dashboard', { replace: true });
             }
           } else {
-            navigate('/user/questionnaire');
+            navigate('/user/questionnaire', { replace: true });
           }
         } else {
-          navigate('/login');
+          navigate('/login', { replace: true });
         }
       } catch (error: any) {
         console.error('Error during auth callback:', error);
         setError(error.message);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login', { replace: true }), 3000);
       }
     };
 

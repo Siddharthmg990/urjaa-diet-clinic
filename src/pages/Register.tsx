@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -27,9 +26,16 @@ const Register = () => {
   const [phoneRegName, setPhoneRegName] = useState("");
   
   const [activeTab, setActiveTab] = useState("email");
-  const { register, registerWithGoogle, verifyPhone } = useAuth();
+  const { register, registerWithGoogle, verifyPhone, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check if user is already authenticated and redirect if needed
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(user?.role === "dietitian" ? "/dietitian/dashboard" : "/user/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

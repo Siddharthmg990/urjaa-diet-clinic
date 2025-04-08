@@ -74,17 +74,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               });
 
               // Handle redirection based on authentication event
-              if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                // Only redirect if this is a new sign-in, not just a session refresh
-                if (event === 'SIGNED_IN' && typedProfile) {
+              if (event === 'SIGNED_IN') {
+                if (typedProfile) {
                   if (typedProfile.phone_verified) {
                     if (typedProfile.role === 'dietitian') {
-                      navigate('/dietitian/dashboard');
+                      navigate('/dietitian/dashboard', { replace: true });
                     } else {
-                      navigate('/user/dashboard');
+                      navigate('/user/dashboard', { replace: true });
                     }
                   } else {
-                    navigate('/user/questionnaire');
+                    navigate('/user/questionnaire', { replace: true });
                   }
                 }
               }
@@ -98,10 +97,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 phone: null,
                 phoneVerified: false
               });
+            } finally {
+              setIsLoading(false);
             }
           }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
       }
     );
