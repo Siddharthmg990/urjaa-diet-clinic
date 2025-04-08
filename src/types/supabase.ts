@@ -17,7 +17,7 @@ export interface Appointment {
   dietitian_id: string | null;
   appointment_date: string | null;
   appointment_time: string | null;
-  status: "confirmed" | "pending" | "requested" | "completed" | "cancelled" | null;
+  status: string | null; // Changed from union type to string to match database
   reason: string | null;
   notes: string | null;
   created_at: string | null;

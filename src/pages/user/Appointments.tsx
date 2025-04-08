@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -22,13 +23,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Appointment as AppointmentType } from "@/types/supabase";
 
+// Define the appointment display type used in the UI
 interface AppointmentDisplay {
   id: string;
   date: Date;
   dietitianName: string;
   type: "video" | "in-person" | "phone";
   duration: number;
-  status: "confirmed" | "pending" | "requested" | "completed" | "cancelled";
+  status: string; // Changed from union type to string to match database
   notes: string;
 }
 
@@ -70,19 +72,26 @@ const Appointments = () => {
         throw error;
       }
 
-      return data.map((appointment: AppointmentType) => ({
+      return data.map((appointment) => ({
         id: appointment.id,
         date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
         dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-        type: (appointment.notes?.includes('video') ? 'video' : 
-              appointment.notes?.includes('phone') ? 'phone' : 'in-person') as "video" | "in-person" | "phone",
+        type: determineAppointmentType(appointment.notes),
         duration: 30,
-        status: appointment.status as "confirmed" | "pending" | "requested" | "completed" | "cancelled",
+        status: appointment.status || "pending",
         notes: appointment.reason || ""
       }));
     },
     enabled: !!isAuthenticated && !!user?.id
   });
+
+  // Helper function to determine appointment type
+  const determineAppointmentType = (notes: string | null): "video" | "in-person" | "phone" => {
+    if (!notes) return "in-person";
+    if (notes.includes('video')) return "video";
+    if (notes.includes('phone')) return "phone";
+    return "in-person";
+  };
 
   // Create appointment mutation
   const createAppointment = useMutation({
@@ -100,7 +109,7 @@ const Appointments = () => {
         .insert({
           ...newAppointment,
           user_id: user.id
-        } as AppointmentType)
+        })
         .select();
 
       if (error) throw error;
@@ -129,7 +138,7 @@ const Appointments = () => {
     mutationFn: async (appointmentId: string) => {
       const { data, error } = await supabase
         .from('appointments')
-        .update({ status: 'cancelled' } as Partial<AppointmentType>)
+        .update({ status: 'cancelled' })
         .eq('id', appointmentId)
         .select();
 
@@ -219,7 +228,7 @@ const Appointments = () => {
       case "cancelled":
         return <Badge className="bg-red-500">Cancelled</Badge>;
       default:
-        return null;
+        return <Badge className="bg-gray-400">{status}</Badge>;
     }
   };
 
