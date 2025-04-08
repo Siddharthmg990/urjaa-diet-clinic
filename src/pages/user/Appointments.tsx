@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -21,8 +20,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Appointment as AppointmentType } from "@/types/supabase";
 
-interface Appointment {
+interface AppointmentDisplay {
   id: string;
   date: Date;
   dietitianName: string;
@@ -70,12 +70,12 @@ const Appointments = () => {
         throw error;
       }
 
-      return data.map(appointment => ({
+      return data.map((appointment: AppointmentType) => ({
         id: appointment.id,
         date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
         dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-        type: appointment.notes?.includes('video') ? 'video' : 
-              appointment.notes?.includes('phone') ? 'phone' : 'in-person',
+        type: (appointment.notes?.includes('video') ? 'video' : 
+              appointment.notes?.includes('phone') ? 'phone' : 'in-person') as "video" | "in-person" | "phone",
         duration: 30,
         status: appointment.status as "confirmed" | "pending" | "requested" | "completed" | "cancelled",
         notes: appointment.reason || ""
@@ -100,7 +100,7 @@ const Appointments = () => {
         .insert({
           ...newAppointment,
           user_id: user.id
-        })
+        } as AppointmentType)
         .select();
 
       if (error) throw error;
@@ -129,7 +129,7 @@ const Appointments = () => {
     mutationFn: async (appointmentId: string) => {
       const { data, error } = await supabase
         .from('appointments')
-        .update({ status: 'cancelled' })
+        .update({ status: 'cancelled' } as Partial<AppointmentType>)
         .eq('id', appointmentId)
         .select();
 
@@ -231,7 +231,7 @@ const Appointments = () => {
     appointment => isPast(appointment.date) && !isToday(appointment.date)
   );
 
-  const renderAppointmentCard = (appointment: Appointment) => {
+  const renderAppointmentCard = (appointment: AppointmentDisplay) => {
     const isUpcoming = isAfter(appointment.date, new Date()) || isToday(appointment.date);
 
     return (

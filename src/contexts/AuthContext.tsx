@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { type User, type Session, type Provider } from '@supabase/supabase-js';
 import { toast as sonnerToast } from 'sonner';
 import { useNavigate } from "react-router-dom";
+import { Profile } from "@/types/supabase";
 
 type UserRole = "user" | "dietitian";
 
@@ -61,13 +62,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 
               if (error) throw error;
               
+              const typedProfile = profile as Profile;
+              
               setUser({
                 id: currentSession.user.id,
                 email: currentSession.user.email,
-                name: profile?.name || currentSession.user.user_metadata?.name || 'User',
-                role: profile?.role as UserRole || 'user',
-                phone: profile?.phone,
-                phoneVerified: profile?.phone_verified
+                name: typedProfile?.name || currentSession.user.user_metadata?.name || 'User',
+                role: (typedProfile?.role as UserRole) || 'user',
+                phone: typedProfile?.phone,
+                phoneVerified: typedProfile?.phone_verified
               });
             } catch (error) {
               console.error('Error fetching user profile:', error);
@@ -100,13 +103,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .single()
           .then(({ data: profile, error }) => {
             if (!error && profile) {
+              const typedProfile = profile as Profile;
+              
               setUser({
                 id: initialSession.user.id,
                 email: initialSession.user.email,
-                name: profile.name || initialSession.user.user_metadata?.name || 'User',
-                role: profile.role as UserRole || 'user',
-                phone: profile.phone,
-                phoneVerified: profile.phone_verified
+                name: typedProfile.name || initialSession.user.user_metadata?.name || 'User',
+                role: (typedProfile.role as UserRole) || 'user',
+                phone: typedProfile.phone,
+                phoneVerified: typedProfile.phone_verified
               });
             } else {
               setUser({
@@ -220,7 +225,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             phone: formattedPhone,
             phone_verified: true,
             name: name || user.name
-          })
+          } as Profile)
           .eq('id', user.id);
         
         if (error) throw error;

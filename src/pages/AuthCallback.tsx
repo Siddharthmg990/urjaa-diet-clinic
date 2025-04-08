@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Profile } from "@/types/supabase";
 
 const AuthCallback = () => {
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +23,11 @@ const AuthCallback = () => {
             .eq('id', data.session.user.id)
             .single();
           
+          const profile = profileData as Profile | null;
+          
           // Redirect based on profile status
-          if (profileData?.phone_verified) {
-            if (profileData.role === 'dietitian') {
+          if (profile?.phone_verified) {
+            if (profile.role === 'dietitian') {
               navigate('/dietitian/dashboard');
             } else {
               navigate('/user/dashboard');
