@@ -1,4 +1,3 @@
-
 import { useAuth } from "../../contexts/AuthContext";
 import {
   Card,
@@ -11,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Clipboard, Utensils, Phone, CheckCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+
+// import { SampleDataGenerator } from '@/components/SampleDataGenerator';
 
 const UserDashboard = () => {
   const { user } = useAuth();

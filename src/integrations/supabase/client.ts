@@ -9,5 +9,16 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+  },
+  global: {
+    // Add better logging for debugging
+    fetch: (url, options) => {
+      return fetch(url, options).then((response) => {
+        if (!response.ok) {
+          console.error(`Supabase fetch error: ${response.status} ${response.statusText}`);
+        }
+        return response;
+      });
+    }
   }
 });

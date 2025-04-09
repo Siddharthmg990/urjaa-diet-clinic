@@ -103,15 +103,21 @@ const Appointments = () => {
     }) => {
       if (!user?.id) throw new Error('User not authenticated');
       
+      console.log("Creating appointment:", { ...newAppointment, user_id: user.id });
+      
       const { data, error } = await supabase
         .from('appointments')
         .insert({
           ...newAppointment,
-          user_id: user.id
+          user_id: user.id,
+          dietitian_id: "00000000-0000-0000-0000-000000000000"
         })
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Appointment creation error:", error);
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
@@ -123,12 +129,12 @@ const Appointments = () => {
       setShowBookingDialog(false);
     },
     onError: (error) => {
+      console.error('Error booking appointment:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to book appointment. Please try again.",
       });
-      console.error('Error booking appointment:', error);
     }
   });
 

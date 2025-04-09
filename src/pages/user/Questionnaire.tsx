@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -281,30 +280,48 @@ const Questionnaire = () => {
       }
       
       const photoUrls = [];
-      const reportUrls = [];
-      
       for (const photo of formData.photos) {
-        const fileName = `${user.id}/${Date.now()}_${photo.name}`;
-        const { data: photoData, error: photoError } = await supabase.storage
-          .from('health_photos')
-          .upload(fileName, photo);
+        try {
+          console.log("Uploading photo to health_photos bucket");
+          const fileName = `${user.id}/${Date.now()}_${photo.name}`;
+          const { data: photoData, error: photoError } = await supabase.storage
+            .from('health_photos')
+            .upload(fileName, photo);
+            
+          if (photoError) {
+            console.error("Photo upload error:", photoError);
+            throw photoError;
+          }
           
-        if (photoError) throw photoError;
-        
-        photoUrls.push(fileName);
+          photoUrls.push(fileName);
+        } catch (e) {
+          console.error("Error in photo upload loop:", e);
+          throw e;
+        }
       }
       
+      const reportUrls = [];
       for (const report of formData.medicalReports) {
-        const fileName = `${user.id}/${Date.now()}_${report.name}`;
-        const { data: reportData, error: reportError } = await supabase.storage
-          .from('medical_reports')
-          .upload(fileName, report);
+        try {
+          console.log("Uploading report to medical_reports bucket");
+          const fileName = `${user.id}/${Date.now()}_${report.name}`;
+          const { data: reportData, error: reportError } = await supabase.storage
+            .from('medical_reports')
+            .upload(fileName, report);
+            
+          if (reportError) {
+            console.error("Medical report upload error:", reportError);
+            throw reportError;
+          }
           
-        if (reportError) throw reportError;
-        
-        reportUrls.push(fileName);
+          reportUrls.push(fileName);
+        } catch (e) {
+          console.error("Error in report upload loop:", e);
+          throw e;
+        }
       }
       
+      console.log("Inserting health assessment");
       const { data, error } = await supabase
         .from('health_assessments')
         .insert([{
@@ -335,7 +352,10 @@ const Questionnaire = () => {
           medical_report_urls: reportUrls
         }]);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Health assessment insert error:", error);
+        throw error;
+      }
       
       toast({
         title: "Health Assessment Submitted",
