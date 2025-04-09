@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Questionnaire = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<QuestionnaireFormData>({
     fullName: "",
     age: "",

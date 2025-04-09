@@ -1,4 +1,3 @@
-
 // Define profile type
 export interface Profile {
   id: string;
@@ -8,6 +7,12 @@ export interface Profile {
   role: "user" | "dietitian" | null;
   created_at: string | null;
   updated_at: string | null;
+  height: string | null;
+  weight: string | null;
+  height_unit: string | null; 
+  weight_unit: string | null;
+  birthdate: string | null;
+  address: string | null;
 }
 
 // Define appointment type
