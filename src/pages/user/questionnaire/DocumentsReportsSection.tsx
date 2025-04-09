@@ -3,8 +3,9 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Upload } from "lucide-react";
+import { X, Upload, AlertCircle } from "lucide-react";
 import { QuestionnaireFormData } from "./types";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface DocumentsReportsSectionProps {
   formData: QuestionnaireFormData;
@@ -28,6 +29,15 @@ export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = (
         <p className="text-sm text-gray-500 mb-2">
           Please upload 3 standing photos (Front, Side, Back) and 1 close-up of your face.
         </p>
+        
+        {errors.photos && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{errors.photos}</AlertDescription>
+          </Alert>
+        )}
+        
         <Input
           type="file"
           onChange={(e) => handleFileChange(e, "photos")}
@@ -35,13 +45,10 @@ export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = (
           multiple
           className={`mb-4 ${errors.photos ? "border-red-500" : ""}`}
         />
-        {errors.photos && (
-          <p className="text-red-500 text-sm mt-1 mb-4">{errors.photos}</p>
-        )}
 
         {formData.photos.length > 0 && (
           <div className="mb-6">
-            <Label className="block mb-2">Uploaded Photos:</Label>
+            <Label className="block mb-2">Uploaded Photos: {formData.photos.length}</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {formData.photos.map((photo, index) => (
                 <div key={index} className="relative group border rounded-md p-1">
@@ -83,7 +90,7 @@ export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = (
 
         {formData.medicalReports && formData.medicalReports.length > 0 && (
           <div>
-            <Label className="block mb-2">Uploaded Reports:</Label>
+            <Label className="block mb-2">Uploaded Reports: {formData.medicalReports.length}</Label>
             <div className="space-y-2">
               {formData.medicalReports.map((report, index) => (
                 <div key={index} className="flex items-center justify-between border rounded-md p-2">
@@ -107,6 +114,10 @@ export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = (
             </div>
           </div>
         )}
+      </div>
+      
+      <div className="mt-4 text-sm text-gray-500">
+        <p>Note: If you experience any issues uploading files, please reduce the file size or try a different image format.</p>
       </div>
     </>
   );

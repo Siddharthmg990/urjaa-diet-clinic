@@ -29,14 +29,39 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Helper function to check if a bucket exists and create it if it doesn't
 export const ensureBucketExists = async (bucketId: string, isPublic = true) => {
   try {
-    // First check if the bucket exists
+    // First check if the bucket exists using getBucket
+    try {
+      console.log(`Checking if bucket ${bucketId} exists directly...`);
+      const { data, error } = await supabase.storage.getBucket(bucketId);
+      
+      if (!error && data) {
+        console.log(`Bucket ${bucketId} already exists (direct check)`);
+        return true;
+      }
+    } catch (err) {
+      console.log(`Direct check for bucket ${bucketId} failed, falling back to listing buckets`);
+    }
+    
+    // If direct check fails, try listing all buckets
     const { data: buckets, error: getBucketError } = await supabase
       .storage
       .listBuckets();
     
     if (getBucketError) {
-      console.error(`Error checking bucket ${bucketId}:`, getBucketError);
-      throw getBucketError;
+      console.error(`Error checking buckets:`, getBucketError);
+      
+      // If we can't even list buckets, try to create it anyway
+      const { error: createAttemptError } = await supabase
+        .storage
+        .createBucket(bucketId, { public: isPublic });
+      
+      if (!createAttemptError) {
+        console.log(`Successfully created bucket ${bucketId} after failed check`);
+        return true;
+      }
+      
+      console.error(`Failed to create bucket ${bucketId} after failed check:`, createAttemptError);
+      return false;
     }
     
     const bucketExists = buckets?.some(bucket => bucket.name === bucketId);
@@ -49,7 +74,7 @@ export const ensureBucketExists = async (bucketId: string, isPublic = true) => {
       
       if (createBucketError) {
         console.error(`Error creating bucket ${bucketId}:`, createBucketError);
-        throw createBucketError;
+        return false;
       }
       console.log(`Successfully created bucket ${bucketId}`);
     } else {
