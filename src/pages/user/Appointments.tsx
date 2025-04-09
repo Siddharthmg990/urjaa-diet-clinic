@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -15,23 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { format, isToday, isAfter, isPast, addDays } from "date-fns";
 import { Calendar as CalendarIcon, Clock, VideoIcon, MapPin, Phone } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Appointment as AppointmentType } from "@/types/supabase";
-
-// Define the appointment display type used in the UI
-interface AppointmentDisplay {
-  id: string;
-  date: Date;
-  dietitianName: string;
-  type: "video" | "in-person" | "phone";
-  duration: number;
-  status: string; // Changed from union type to string to match database
-  notes: string;
-}
+import { useAppointments } from "@/hooks/use-appointments";
 
 // Half-hour time slots from 11am to 3pm
 const availableTimeSlots = [
@@ -44,145 +31,33 @@ const availableTimeSlots = [
 const Appointments = () => {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedTab, setSelectedTab] = useState("upcoming");
-  const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [bookingType, setBookingType] = useState<"video" | "in-person" | "phone">("video");
   const [selectedTime, setSelectedTime] = useState("");
   const { user, isAuthenticated } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  // Fetch appointments from Supabase
-  const { data: appointments = [], isLoading } = useQuery({
-    queryKey: ['appointments', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-
-      const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          dietitian:profiles!dietitian_id(name)
-        `)
-        .eq('user_id', user.id)
-        .order('appointment_date', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching appointments:', error);
-        throw error;
-      }
-
-      return data.map((appointment) => ({
-        id: appointment.id,
-        date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
-        dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-        type: determineAppointmentType(appointment.notes),
-        duration: 30,
-        status: appointment.status || "pending",
-        notes: appointment.reason || ""
-      }));
-    },
-    enabled: !!isAuthenticated && !!user?.id
-  });
-
-  // Helper function to determine appointment type
-  const determineAppointmentType = (notes: string | null): "video" | "in-person" | "phone" => {
-    if (!notes) return "in-person";
-    if (notes.includes('video')) return "video";
-    if (notes.includes('phone')) return "phone";
-    return "in-person";
-  };
-
-  // Create appointment mutation
-  const createAppointment = useMutation({
-    mutationFn: async (newAppointment: {
-      appointment_date: string;
-      appointment_time: string;
-      status: string;
-      reason: string;
-      notes: string;
-    }) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      
-      console.log("Creating appointment:", { ...newAppointment, user_id: user.id });
-      
-      const { data, error } = await supabase
-        .from('appointments')
-        .insert({
-          ...newAppointment,
-          user_id: user.id,
-          dietitian_id: "00000000-0000-0000-0000-000000000000"
-        })
-        .select();
-
-      if (error) {
-        console.error("Appointment creation error:", error);
-        throw error;
-      }
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        title: "Appointment Requested",
-        description: `Your appointment has been requested for ${format(date!, "MMMM d, yyyy")} at ${selectedTime}`,
-      });
-      setShowBookingDialog(false);
-    },
-    onError: (error) => {
-      console.error('Error booking appointment:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to book appointment. Please try again.",
-      });
-    }
-  });
-
-  // Cancel appointment mutation
-  const cancelAppointment = useMutation({
-    mutationFn: async (appointmentId: string) => {
-      const { data, error } = await supabase
-        .from('appointments')
-        .update({ status: 'cancelled' })
-        .eq('id', appointmentId)
-        .select();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        title: "Appointment Cancelled",
-        description: "Your appointment has been cancelled",
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to cancel appointment. Please try again.",
-      });
-      console.error('Error cancelling appointment:', error);
-    }
+  // Use the custom hook for appointments
+  const {
+    appointments,
+    isLoading,
+    createAppointment,
+    cancelAppointment,
+    isBookingModalOpen,
+    setIsBookingModalOpen
+  } = useAppointments({
+    userId: user?.id,
+    isAuthenticated: !!isAuthenticated
   });
 
   const handleBookAppointment = () => {
-    if (!date || !selectedTime) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please select both a date and time",
-      });
+    if (!user?.id || !date || !selectedTime) {
       return;
     }
 
     createAppointment.mutate({
-      appointment_date: format(date, "yyyy-MM-dd"),
-      appointment_time: selectedTime,
-      status: 'requested',
-      reason: "Consultation request",
-      notes: `${bookingType} session requested`
+      date,
+      time: selectedTime,
+      type: bookingType,
+      userId: user.id
     });
   };
 
@@ -190,21 +65,6 @@ const Appointments = () => {
     if (confirm('Are you sure you want to cancel this appointment?')) {
       cancelAppointment.mutate(id);
     }
-  };
-
-  const convertTo24HourFormat = (time12h: string): string => {
-    const [time, modifier] = time12h.split(' ');
-    let [hours, minutes] = time.split(':');
-    
-    if (hours === '12') {
-      hours = '00';
-    }
-    
-    if (modifier === 'PM') {
-      hours = String(parseInt(hours, 10) + 12);
-    }
-    
-    return `${hours}:${minutes}`;
   };
 
   const getAppointmentTypeIcon = (type: string) => {
@@ -245,7 +105,7 @@ const Appointments = () => {
     appointment => isPast(appointment.date) && !isToday(appointment.date)
   );
 
-  const renderAppointmentCard = (appointment: AppointmentDisplay) => {
+  const renderAppointmentCard = (appointment: any) => {
     const isUpcoming = isAfter(appointment.date, new Date()) || isToday(appointment.date);
 
     return (
@@ -324,7 +184,7 @@ const Appointments = () => {
             View and manage your dietitian appointments
           </p>
         </div>
-        <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
+        <Dialog open={isBookingModalOpen} onOpenChange={setIsBookingModalOpen}>
           <DialogTrigger asChild>
             <Button className="mt-4 md:mt-0 bg-nourish-primary hover:bg-nourish-dark">
               Book New Appointment
@@ -386,7 +246,7 @@ const Appointments = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowBookingDialog(false)}>
+              <Button variant="outline" onClick={() => setIsBookingModalOpen(false)}>
                 Cancel
               </Button>
               <Button onClick={handleBookAppointment} className="bg-nourish-primary">
@@ -412,7 +272,7 @@ const Appointments = () => {
               <p className="text-gray-500 mb-4">
                 You don't have any scheduled appointments.
               </p>
-              <Button onClick={() => setShowBookingDialog(true)} className="bg-nourish-primary">
+              <Button onClick={() => setIsBookingModalOpen(true)} className="bg-nourish-primary">
                 Book Now
               </Button>
             </div>

@@ -11,8 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, ensureBucketExists } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFileUpload } from "@/hooks/use-file-upload";
 
 import { QuestionnaireStepIndicator } from "./questionnaire/QuestionnaireStepIndicator";
 import { PersonalInfoSection } from "./questionnaire/PersonalInfoSection";
@@ -62,6 +63,16 @@ const Questionnaire = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { user } = useAuth();
+
+  const photoUploader = useFileUpload({
+    userId: user?.id || '',
+    bucketName: 'health_photos'
+  });
+
+  const reportUploader = useFileUpload({
+    userId: user?.id || '',
+    bucketName: 'medical_reports'
+  });
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -279,46 +290,21 @@ const Questionnaire = () => {
         throw new Error("User not authenticated");
       }
       
-      const photoUrls = [];
-      for (const photo of formData.photos) {
-        try {
-          console.log("Uploading photo to health_photos bucket");
-          const fileName = `${user.id}/${Date.now()}_${photo.name}`;
-          const { data: photoData, error: photoError } = await supabase.storage
-            .from('health_photos')
-            .upload(fileName, photo);
-            
-          if (photoError) {
-            console.error("Photo upload error:", photoError);
-            throw photoError;
-          }
-          
-          photoUrls.push(fileName);
-        } catch (e) {
-          console.error("Error in photo upload loop:", e);
-          throw e;
-        }
+      await Promise.all([
+        ensureBucketExists('health_photos'),
+        ensureBucketExists('medical_reports')
+      ]);
+      
+      console.log("Uploading photos and medical reports...");
+      
+      const { fileUrls: photoUrls, error: photoError } = await photoUploader.uploadFiles(formData.photos);
+      if (photoError) {
+        throw photoError;
       }
       
-      const reportUrls = [];
-      for (const report of formData.medicalReports) {
-        try {
-          console.log("Uploading report to medical_reports bucket");
-          const fileName = `${user.id}/${Date.now()}_${report.name}`;
-          const { data: reportData, error: reportError } = await supabase.storage
-            .from('medical_reports')
-            .upload(fileName, report);
-            
-          if (reportError) {
-            console.error("Medical report upload error:", reportError);
-            throw reportError;
-          }
-          
-          reportUrls.push(fileName);
-        } catch (e) {
-          console.error("Error in report upload loop:", e);
-          throw e;
-        }
+      const { fileUrls: reportUrls, error: reportError } = await reportUploader.uploadFiles(formData.medicalReports);
+      if (reportError) {
+        throw reportError;
       }
       
       console.log("Inserting health assessment");
@@ -524,9 +510,10 @@ const Questionnaire = () => {
           ) : (
             <Button 
               onClick={handleSubmit}
+              disabled={isLoading}
               className={isMobile ? "w-full" : ""}
             >
-              Submit
+              {isLoading ? "Submitting..." : "Submit"}
             </Button>
           )}
         </CardFooter>

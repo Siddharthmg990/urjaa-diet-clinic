@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, ensureBucketExists } from '@/integrations/supabase/client';
 
 /**
  * Create sample data for testing purposes.
@@ -7,6 +7,12 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const createSampleData = async (userId: string) => {
   try {
+    // Ensure buckets exist
+    await Promise.all([
+      ensureBucketExists('health_photos'),
+      ensureBucketExists('medical_reports')
+    ]);
+
     // Create a sample diet plan
     const dietPlan = {
       user_id: userId,
