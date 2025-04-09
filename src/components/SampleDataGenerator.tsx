@@ -4,35 +4,34 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { createSampleData } from '@/utils/createSampleData';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, ensureBucketExists, initializeStorage } from '@/integrations/supabase/client';
 
 export const SampleDataGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [bucketsChecked, setBucketsChecked] = useState(false);
-  const [bucketsExist, setBucketsExist] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Check if buckets exist on component mount
+  // Initialize storage on component mount
   useEffect(() => {
-    const checkBuckets = async () => {
+    const setupStorage = async () => {
+      if (!user?.id) return;
+      
+      setIsInitializing(true);
       try {
-        // First check if buckets exist
-        const { data: buckets } = await supabase.storage.listBuckets();
-        
-        const healthBucket = buckets?.find(b => b.name === 'health_photos');
-        const reportsBucket = buckets?.find(b => b.name === 'medical_reports');
-        
-        setBucketsExist(!!healthBucket && !!reportsBucket);
-        setBucketsChecked(true);
+        console.log("Initializing storage from SampleDataGenerator...");
+        await initializeStorage();
+        setStorageReady(true);
       } catch (error) {
-        console.error("Error checking buckets:", error);
-        setBucketsChecked(true);
+        console.error("Error initializing storage:", error);
+      } finally {
+        setIsInitializing(false);
       }
     };
     
     if (user?.id) {
-      checkBuckets();
+      setupStorage();
     }
   }, [user?.id]);
 
@@ -48,6 +47,12 @@ export const SampleDataGenerator = () => {
 
     setIsGenerating(true);
     try {
+      // Ensure storage is ready before generating sample data
+      if (!storageReady) {
+        console.log("Initializing storage before generating sample data...");
+        await initializeStorage();
+      }
+      
       const result = await createSampleData(user.id);
       if (result.success) {
         toast({
@@ -71,9 +76,13 @@ export const SampleDataGenerator = () => {
 
   return (
     <div>
-      {bucketsChecked && !bucketsExist && (
+      {isInitializing ? (
         <div className="text-amber-600 mb-2 text-sm">
-          Note: Storage buckets may not be properly configured. Some features like file uploads might not work correctly.
+          Initializing storage system...
+        </div>
+      ) : !storageReady && (
+        <div className="text-amber-600 mb-2 text-sm">
+          Storage system may not be properly configured. Some features like file uploads might not work correctly.
         </div>
       )}
       <Button 

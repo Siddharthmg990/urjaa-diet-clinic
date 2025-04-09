@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import {
   Card,
@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { supabase, ensureBucketExists } from "@/integrations/supabase/client";
+import { supabase, initializeStorage } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFileUpload } from "@/hooks/use-file-upload";
 
@@ -28,6 +28,7 @@ const Questionnaire = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isStorageInitializing, setIsStorageInitializing] = useState(false);
   const [formData, setFormData] = useState<QuestionnaireFormData>({
     fullName: "",
     age: "",
@@ -64,14 +65,36 @@ const Questionnaire = () => {
   const isMobile = useIsMobile();
   const { user } = useAuth();
 
+  useEffect(() => {
+    const setupStorage = async () => {
+      if (!user?.id) return;
+      
+      setIsStorageInitializing(true);
+      try {
+        console.log("Initializing storage from Questionnaire component...");
+        await initializeStorage();
+      } catch (error) {
+        console.error("Storage initialization error:", error);
+      } finally {
+        setIsStorageInitializing(false);
+      }
+    };
+    
+    if (user?.id) {
+      setupStorage();
+    }
+  }, [user?.id]);
+
   const photoUploader = useFileUpload({
     userId: user?.id || '',
-    bucketName: 'health_photos'
+    bucketName: 'health_photos',
+    fallbackBucket: 'images'
   });
 
   const reportUploader = useFileUpload({
     userId: user?.id || '',
-    bucketName: 'medical_reports'
+    bucketName: 'medical_reports',
+    fallbackBucket: 'images'
   });
 
   const handleChange = (field: string, value: any) => {
@@ -290,12 +313,14 @@ const Questionnaire = () => {
         throw new Error("User not authenticated");
       }
       
-      await Promise.all([
-        ensureBucketExists('health_photos'),
-        ensureBucketExists('medical_reports')
-      ]);
+      await initializeStorage();
       
       console.log("Uploading photos and medical reports...");
+      
+      toast({
+        title: "Uploading Files",
+        description: "Please wait while your files are being uploaded...",
+      });
       
       const { fileUrls: photoUrls, error: photoError } = await photoUploader.uploadFiles(formData.photos);
       if (photoError) {
@@ -306,6 +331,11 @@ const Questionnaire = () => {
       if (reportError) {
         throw reportError;
       }
+      
+      toast({
+        title: "Files Uploaded",
+        description: "Your files have been uploaded successfully.",
+      });
       
       console.log("Inserting health assessment");
       const { data, error } = await supabase
@@ -457,6 +487,10 @@ const Questionnaire = () => {
                 handleFileChange={handleFileChange}
                 removeFile={removeFile}
                 errors={errors}
+                storageStatus={{
+                  isBucketReady: photoUploader.isBucketReady && reportUploader.isBucketReady,
+                  activeBucket: photoUploader.activeBucket
+                }}
               />
             </CardContent>
           </>
@@ -484,6 +518,14 @@ const Questionnaire = () => {
       <p className="text-gray-600 mb-6">
         Complete this questionnaire to help us create your personalized nutrition plan.
       </p>
+
+      {isStorageInitializing && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
+          <p className="text-amber-700 text-sm">
+            Storage system is initializing. Please wait a moment before proceeding to file uploads.
+          </p>
+        </div>
+      )}
 
       <QuestionnaireStepIndicator currentStep={currentStep} goToStep={goToStep} totalSteps={5} />
 

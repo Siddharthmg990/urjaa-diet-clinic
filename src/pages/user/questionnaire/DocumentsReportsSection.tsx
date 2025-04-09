@@ -3,7 +3,7 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X, Upload, AlertCircle } from "lucide-react";
+import { X, Upload, AlertCircle, Info } from "lucide-react";
 import { QuestionnaireFormData } from "./types";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
@@ -12,13 +12,18 @@ interface DocumentsReportsSectionProps {
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>, fileType: "photos" | "medicalReports") => void;
   removeFile: (index: number, fileType: "photos" | "medicalReports") => void;
   errors: Record<string, string>;
+  storageStatus?: {
+    isBucketReady: boolean;
+    activeBucket?: string;
+  };
 }
 
 export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = ({
   formData,
   handleFileChange,
   removeFile,
-  errors
+  errors,
+  storageStatus = { isBucketReady: true }
 }) => {
   return (
     <>
@@ -30,6 +35,16 @@ export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = (
           Please upload 3 standing photos (Front, Side, Back) and 1 close-up of your face.
         </p>
         
+        {!storageStatus.isBucketReady && (
+          <Alert className="mb-4" variant="warning">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Storage Setup</AlertTitle>
+            <AlertDescription>
+              Storage system is being configured. You may experience delays when uploading photos.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {errors.photos && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />

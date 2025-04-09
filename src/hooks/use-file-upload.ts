@@ -1,72 +1,66 @@
 
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useEffect } from 'react';
+import { supabase, ensureBucketExists, uploadFile } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface UseFileUploadOptions {
   userId: string;
   bucketName: string;
   isPublic?: boolean;
+  fallbackBucket?: string;
 }
 
 interface FileUploadResult {
   fileUrls: string[];
-  publicUrls?: string[];
+  publicUrls: string[];
   error: Error | null;
 }
 
-export const useFileUpload = ({ userId, bucketName, isPublic = true }: UseFileUploadOptions) => {
+export const useFileUpload = ({
+  userId,
+  bucketName,
+  isPublic = true,
+  fallbackBucket = 'images'
+}: UseFileUploadOptions) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [isBucketReady, setIsBucketReady] = useState(false);
+  const [activeBucket, setActiveBucket] = useState(bucketName);
   const { toast } = useToast();
 
-  // Function to check if bucket exists
-  const checkBucketExists = async (bucketName: string): Promise<boolean> => {
-    try {
-      console.log(`Checking if bucket ${bucketName} exists...`);
-      const { data, error } = await supabase.storage.getBucket(bucketName);
-      
-      if (error) {
-        console.warn(`Error checking bucket ${bucketName}:`, error);
-        return false;
+  // Check bucket status when component mounts
+  useEffect(() => {
+    const checkBucket = async () => {
+      try {
+        let exists = await ensureBucketExists(bucketName, isPublic);
+        
+        if (!exists && fallbackBucket) {
+          console.log(`Primary bucket ${bucketName} unavailable, checking fallback ${fallbackBucket}`);
+          exists = await ensureBucketExists(fallbackBucket, true);
+          
+          if (exists) {
+            setActiveBucket(fallbackBucket);
+          }
+        }
+        
+        setIsBucketReady(exists);
+      } catch (error) {
+        console.error("Error checking bucket status:", error);
+        setIsBucketReady(false);
       }
-      
-      console.log(`Bucket ${bucketName} exists:`, data);
-      return true;
-    } catch (error) {
-      console.warn(`Error in checkBucketExists for ${bucketName}:`, error);
-      return false;
+    };
+    
+    if (userId) {
+      checkBucket();
     }
-  };
-
-  // Function to create a bucket if it doesn't exist
-  const createBucket = async (bucketName: string, isPublic: boolean): Promise<boolean> => {
-    try {
-      console.log(`Creating bucket ${bucketName}...`);
-      const { data, error } = await supabase.storage.createBucket(bucketName, {
-        public: isPublic,
-        fileSizeLimit: 10485760 // 10MB
-      });
-      
-      if (error) {
-        console.error(`Failed to create bucket ${bucketName}:`, error);
-        return false;
-      }
-      
-      console.log(`Successfully created bucket ${bucketName}`);
-      return true;
-    } catch (error) {
-      console.error(`Error in createBucket for ${bucketName}:`, error);
-      return false;
-    }
-  };
+  }, [userId, bucketName, fallbackBucket, isPublic]);
 
   const uploadFiles = async (files: File[]): Promise<FileUploadResult> => {
     if (!userId) {
-      return { fileUrls: [], error: new Error("User not authenticated") };
+      return { fileUrls: [], publicUrls: [], error: new Error("User not authenticated") };
     }
 
     if (!files.length) {
-      return { fileUrls: [], error: null };
+      return { fileUrls: [], publicUrls: [], error: null };
     }
 
     setIsUploading(true);
@@ -74,57 +68,37 @@ export const useFileUpload = ({ userId, bucketName, isPublic = true }: UseFileUp
     const publicUrls: string[] = [];
 
     try {
-      // First check if bucket exists
-      let bucketExists = await checkBucketExists(bucketName);
+      // Double-check bucket exists just before upload
+      const currentBucket = activeBucket || bucketName;
+      let bucketExists = await ensureBucketExists(currentBucket, isPublic);
       
-      // If bucket doesn't exist, try to create it
-      if (!bucketExists) {
-        bucketExists = await createBucket(bucketName, isPublic);
+      // Try fallback if primary bucket isn't available
+      if (!bucketExists && fallbackBucket && currentBucket !== fallbackBucket) {
+        console.log(`Switching to fallback bucket ${fallbackBucket} for upload`);
+        bucketExists = await ensureBucketExists(fallbackBucket, true);
         
-        // If we still can't access or create the bucket, use a fallback approach
-        if (!bucketExists) {
-          console.log(`Cannot access or create bucket ${bucketName}, using default 'images' bucket as fallback`);
-          // Try with a different bucket name
-          bucketExists = await checkBucketExists('images');
-          
-          if (!bucketExists) {
-            bucketExists = await createBucket('images', true);
-            
-            if (!bucketExists) {
-              throw new Error(`Cannot upload files. Storage is not properly configured.`);
-            } else {
-              bucketName = 'images'; // Use the fallback bucket
-            }
-          } else {
-            bucketName = 'images'; // Use the fallback bucket
-          }
+        if (bucketExists) {
+          setActiveBucket(fallbackBucket);
+        } else {
+          throw new Error(`Cannot upload files. Storage is not properly configured.`);
         }
+      } else if (!bucketExists) {
+        throw new Error(`Cannot upload files. Bucket "${currentBucket}" is not available.`);
       }
 
+      // Upload each file
       for (const file of files) {
-        const fileName = `${userId}/${Date.now()}_${file.name}`;
+        const uploadBucket = activeBucket || bucketName;
+        console.log(`Uploading ${file.name} to ${uploadBucket} bucket...`);
         
-        console.log(`Uploading ${file.name} to ${bucketName} bucket...`);
+        const { path, publicUrl, error } = await uploadFile(uploadBucket, userId, file, { isPublic });
         
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .upload(fileName, file, {
-            upsert: true,
-            cacheControl: '3600'
-          });
-
         if (error) {
-          console.error(`Error uploading file to ${bucketName}:`, error);
           throw error;
         }
-
-        fileUrls.push(fileName);
         
-        // Get the public URL
-        const publicUrl = supabase.storage.from(bucketName).getPublicUrl(fileName).data.publicUrl;
-        publicUrls.push(publicUrl);
-        
-        console.log(`Successfully uploaded ${fileName} to ${bucketName}`);
+        if (path) fileUrls.push(path);
+        if (publicUrl) publicUrls.push(publicUrl);
       }
 
       return { fileUrls, publicUrls, error: null };
@@ -135,11 +109,20 @@ export const useFileUpload = ({ userId, bucketName, isPublic = true }: UseFileUp
         title: "Upload failed",
         description: error instanceof Error ? error.message : "File upload failed"
       });
-      return { fileUrls, error: error instanceof Error ? error : new Error(String(error)) };
+      return { 
+        fileUrls, 
+        publicUrls, 
+        error: error instanceof Error ? error : new Error(String(error)) 
+      };
     } finally {
       setIsUploading(false);
     }
   };
 
-  return { uploadFiles, isUploading };
+  return { 
+    uploadFiles, 
+    isUploading, 
+    isBucketReady, 
+    activeBucket 
+  };
 };
