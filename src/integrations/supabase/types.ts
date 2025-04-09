@@ -297,31 +297,49 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          birthdate: string | null
           created_at: string | null
+          height: string | null
+          height_unit: string | null
           id: string
           name: string | null
           phone: string | null
           phone_verified: boolean | null
           role: string | null
           updated_at: string | null
+          weight: string | null
+          weight_unit: string | null
         }
         Insert: {
+          address?: string | null
+          birthdate?: string | null
           created_at?: string | null
+          height?: string | null
+          height_unit?: string | null
           id: string
           name?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           role?: string | null
           updated_at?: string | null
+          weight?: string | null
+          weight_unit?: string | null
         }
         Update: {
+          address?: string | null
+          birthdate?: string | null
           created_at?: string | null
+          height?: string | null
+          height_unit?: string | null
           id?: string
           name?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           role?: string | null
           updated_at?: string | null
+          weight?: string | null
+          weight_unit?: string | null
         }
         Relationships: []
       }

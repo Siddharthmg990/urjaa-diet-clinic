@@ -16,25 +16,8 @@ const AuthCallback = () => {
         if (error) throw error;
         
         if (data?.session) {
-          // Check if phone is verified
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('phone_verified, role')
-            .eq('id', data.session.user.id)
-            .single();
-          
-          const profile = profileData as Profile | null;
-          
-          // Redirect based on profile status
-          if (profile?.phone_verified) {
-            if (profile.role === 'dietitian') {
-              navigate('/dietitian/dashboard', { replace: true });
-            } else {
-              navigate('/user/dashboard', { replace: true });
-            }
-          } else {
-            navigate('/user/questionnaire', { replace: true });
-          }
+          // Always redirect to user dashboard after authentication
+          navigate('/user/dashboard', { replace: true });
         } else {
           navigate('/login', { replace: true });
         }

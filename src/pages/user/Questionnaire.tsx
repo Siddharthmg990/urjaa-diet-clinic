@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { QuestionnaireStepIndicator } from "./questionnaire/QuestionnaireStepIndicator";
 import { PersonalInfoSection } from "./questionnaire/PersonalInfoSection";
@@ -33,7 +34,7 @@ const Questionnaire = () => {
     weight: "",
     weightUnit: "kg",
     sex: "",
-    city: "", // Added city field
+    city: "",
     workingHours: { start: "", end: "" },
     healthConcerns: "",
     medicalConditions: [] as string[],
@@ -59,6 +60,7 @@ const Questionnaire = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -188,7 +190,6 @@ const Questionnaire = () => {
         newErrors.profession = "Profession is required";
       }
       
-      // Only require occupation if profession is not homemaker
       if (formData.profession && formData.profession !== "homemaker" && !formData.occupation) {
         newErrors.occupation = "Occupation is required";
       }
@@ -219,7 +220,6 @@ const Questionnaire = () => {
         newErrors.meals = "At least one meal is required";
       }
       
-      // Modified validation: Skip activity validation if the first activity type is "None"
       if (formData.activities.length > 0 && formData.activities[0].type !== "None") {
         formData.activities.forEach((activity, index) => {
           if (!activity.type) {
@@ -266,17 +266,91 @@ const Questionnaire = () => {
     }
   }, [currentStep]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep(currentStep)) {
       return;
     }
     
-    console.log("Form submitted:", formData);
-    toast({
-      title: "Health Assessment Submitted",
-      description: "Thank you for completing your health assessment. Your dietitian will review your information.",
-    });
-    navigate("/user/dashboard");
+    try {
+      setIsLoading(true);
+      
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+      
+      const photoUrls = [];
+      const reportUrls = [];
+      
+      for (const photo of formData.photos) {
+        const fileName = `${user.id}/${Date.now()}_${photo.name}`;
+        const { data: photoData, error: photoError } = await supabase.storage
+          .from('health_photos')
+          .upload(fileName, photo);
+          
+        if (photoError) throw photoError;
+        
+        photoUrls.push(fileName);
+      }
+      
+      for (const report of formData.medicalReports) {
+        const fileName = `${user.id}/${Date.now()}_${report.name}`;
+        const { data: reportData, error: reportError } = await supabase.storage
+          .from('medical_reports')
+          .upload(fileName, report);
+          
+        if (reportError) throw reportError;
+        
+        reportUrls.push(fileName);
+      }
+      
+      const { data, error } = await supabase
+        .from('health_assessments')
+        .insert([{
+          user_id: user.id,
+          full_name: formData.fullName,
+          age: formData.age,
+          height: formData.height,
+          height_unit: formData.heightUnit,
+          weight: formData.weight,
+          weight_unit: formData.weightUnit,
+          sex: formData.sex,
+          city: formData.city,
+          health_concerns: formData.healthConcerns,
+          medical_conditions: formData.medicalConditions,
+          other_condition: formData.otherCondition,
+          diet_type: formData.dietType,
+          wakeup_time: formData.wakeupTime,
+          sleep_time: formData.sleepTime,
+          profession: formData.profession,
+          occupation: formData.occupation,
+          leave_home_time: formData.leaveHomeTime,
+          return_home_time: formData.returnHomeTime,
+          break_times: formData.breakTimes,
+          working_hours: formData.workingHours,
+          meals: formData.meals,
+          activities: formData.activities,
+          photo_urls: photoUrls,
+          medical_report_urls: reportUrls
+        }]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Health Assessment Submitted",
+        description: "Thank you for completing your health assessment. Your dietitian will review your information.",
+      });
+      
+      navigate("/user/dashboard");
+    } catch (error: any) {
+      console.error("Error submitting health assessment:", error);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: error.message || "An error occurred while submitting your health assessment. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderCurrentSection = () => {

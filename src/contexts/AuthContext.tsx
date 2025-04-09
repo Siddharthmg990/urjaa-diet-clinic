@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,14 +43,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('Auth state changed:', event);
         setSession(currentSession);
         
         if (currentSession?.user) {
-          // Fetch the user profile data
           setTimeout(async () => {
             try {
               const { data: profile, error } = await supabase
@@ -73,19 +70,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 phoneVerified: typedProfile?.phone_verified
               });
 
-              // Handle redirection based on authentication event
               if (event === 'SIGNED_IN') {
-                if (typedProfile) {
-                  if (typedProfile.phone_verified) {
-                    if (typedProfile.role === 'dietitian') {
-                      navigate('/dietitian/dashboard', { replace: true });
-                    } else {
-                      navigate('/user/dashboard', { replace: true });
-                    }
-                  } else {
-                    navigate('/user/questionnaire', { replace: true });
-                  }
-                }
+                navigate('/user/dashboard', { replace: true });
               }
             } catch (error) {
               console.error('Error fetching user profile:', error);
@@ -97,6 +83,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 phone: null,
                 phoneVerified: false
               });
+              
+              if (event === 'SIGNED_IN') {
+                navigate('/user/dashboard', { replace: true });
+              }
             } finally {
               setIsLoading(false);
             }
@@ -108,12 +98,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession);
       
       if (initialSession?.user) {
-        // Fetch the user profile data
         supabase
           .from('profiles')
           .select('*')
@@ -167,7 +155,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: `Welcome back${data.user?.user_metadata?.name ? ', ' + data.user.user_metadata.name : ''}!`,
       });
 
-      // Redirect will be handled by onAuthStateChange
+      navigate("/user/dashboard", { replace: true });
       
     } catch (error: any) {
       toast({
@@ -196,7 +184,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: `Welcome to Urjaa Diet Clinic, ${name}!`,
       });
 
-      // Redirect will be handled by onAuthStateChange
+      navigate("/user/dashboard", { replace: true });
       
     } catch (error: any) {
       toast({
@@ -235,11 +223,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // For now, we're simulating phone verification
-      // In a real app, you would use a service like Twilio for SMS OTPs
-      const formattedPhone = `+91${phone}`; // Format for India
+      const formattedPhone = `+91${phone}`;
       
-      // Update the user's phone number
       if (user) {
         const { error } = await supabase
           .from('profiles')
@@ -252,7 +237,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (error) throw error;
         
-        // Update local state
         setUser(prev => prev ? {
           ...prev,
           phone: formattedPhone,
@@ -265,7 +249,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: "Your phone number has been verified",
         });
         
-        // Navigate to appropriate page
         navigate("/user/dashboard");
       } else {
         throw new Error("No authenticated user found");
