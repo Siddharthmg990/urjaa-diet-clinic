@@ -1,204 +1,148 @@
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-
-interface AppointmentDisplay {
-  id: string;
-  date: Date;
-  dietitianName: string;
-  type: "video" | "in-person" | "phone";
-  duration: number;
-  status: string;
-  notes: string;
-}
-
-interface BookAppointmentParams {
-  date: Date | undefined;
-  time: string;
-  type: "video" | "in-person" | "phone";
-  userId: string;
-}
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { format, parseISO } from 'date-fns';
 
 interface UseAppointmentsProps {
-  userId: string | undefined;
+  userId?: string;
   isAuthenticated: boolean;
 }
 
+interface AppointmentCreateData {
+  userId: string;
+  date: Date | string;
+  time: string;
+  type: 'video' | 'in-person' | 'phone';
+}
+
 export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProps) => {
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   // Fetch appointments
-  const { data: appointments = [], isLoading } = useQuery({
+  const { data: appointments = [], isLoading, error } = useQuery({
     queryKey: ['appointments', userId],
     queryFn: async () => {
-      if (!userId) return [];
-
-      try {
-        const { data, error } = await supabase
-          .from('appointments')
-          .select(`
-            *,
-            dietitian:profiles!dietitian_id(name)
-          `)
-          .eq('user_id', userId)
-          .order('appointment_date', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching appointments:', error);
-          throw error;
-        }
-
-        return data.map((appointment) => ({
-          id: appointment.id,
-          date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
-          dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-          type: determineAppointmentType(appointment.notes),
-          duration: 30,
-          status: appointment.status || "pending",
-          notes: appointment.reason || ""
-        }));
-      } catch (error) {
-        console.error('Failed to fetch appointments:', error);
-        toast({
-          variant: "destructive",
-          title: "Could not load appointments",
-          description: "Please try again later",
-        });
+      if (!userId || !isAuthenticated) {
         return [];
       }
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error loading appointments:', error);
+        throw error;
+      }
+
+      // Process the data to format dates
+      return data.map(appointment => ({
+        id: appointment.id,
+        date: parseISO(`${appointment.appointment_date}T${appointment.appointment_time}`),
+        time: appointment.appointment_time,
+        type: appointment.type || 'video', // Default to video if type is missing
+        status: appointment.status,
+        notes: appointment.notes,
+        reason: appointment.reason,
+        dietitianName: appointment.dietitian_name || 'Your Dietitian',
+        duration: appointment.duration || 30,
+      }));
     },
-    enabled: !!isAuthenticated && !!userId,
-    staleTime: 30000,
+    enabled: !!userId && isAuthenticated,
   });
 
   // Create appointment mutation
   const createAppointment = useMutation({
-    mutationFn: async ({ date, time, type, userId }: BookAppointmentParams) => {
-      if (!date || !time || !userId) {
-        throw new Error("Date, time, and user ID are required");
+    mutationFn: async (data: AppointmentCreateData) => {
+      console.log("Creating appointment with data:", data);
+      
+      let formattedDate;
+      if (typeof data.date === 'string') {
+        formattedDate = data.date; // Already formatted as YYYY-MM-DD
+      } else {
+        formattedDate = format(data.date, 'yyyy-MM-dd');
       }
       
-      console.log("Creating appointment:", { 
-        date: format(date, "yyyy-MM-dd"), 
-        time, 
-        type, 
-        userId 
-      });
-      
-      // Create appointment with minimal required fields
-      const appointmentData = {
-        appointment_date: format(date, "yyyy-MM-dd"),
-        appointment_time: time,
-        status: 'requested',
-        reason: `${type} consultation request`,
-        notes: `${type} session requested by client`,
-        user_id: userId,
-      };
-
-      const { data, error } = await supabase
+      const { data: newAppointment, error } = await supabase
         .from('appointments')
-        .insert(appointmentData)
+        .insert([{
+          user_id: data.userId,
+          appointment_date: formattedDate,
+          appointment_time: data.time,
+          type: data.type,
+          status: 'requested',
+          reason: 'Nutrition consultation',
+          notes: `${data.type} session requested`,
+          duration: 30
+        }])
         .select();
 
       if (error) {
-        console.error("Appointment creation error:", error);
-        throw new Error(`Failed to book appointment: ${error.message}`);
+        console.error('Error creating appointment:', error);
+        throw error;
       }
       
-      if (!data || data.length === 0) {
-        throw new Error("No data returned after creating appointment");
-      }
-      
-      return data[0];
+      console.log("New appointment created:", newAppointment);
+      return newAppointment[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast({
-        title: "Appointment Requested",
-        description: "Your appointment has been successfully requested.",
+        title: 'Appointment Requested',
+        description: 'Your appointment request has been submitted.',
       });
       setIsBookingModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
-    onError: (error) => {
-      console.error('Error booking appointment:', error);
+    onError: (error: any) => {
+      console.error('Appointment creation error:', error);
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to book appointment. Please try again.",
+        variant: 'destructive',
+        title: 'Appointment Request Failed',
+        description: error.message || 'Failed to request appointment. Please try again.',
       });
-    }
+    },
   });
 
   // Cancel appointment mutation
   const cancelAppointment = useMutation({
     mutationFn: async (appointmentId: string) => {
-      if (!appointmentId) {
-        throw new Error("Appointment ID is required");
-      }
-      
       const { data, error } = await supabase
         .from('appointments')
         .update({ status: 'cancelled' })
         .eq('id', appointmentId)
         .select();
 
-      if (error) {
-        throw new Error(`Failed to cancel appointment: ${error.message}`);
-      }
-      
+      if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast({
-        title: "Appointment Cancelled",
-        description: "Your appointment has been cancelled",
+        title: 'Appointment Cancelled',
+        description: 'Your appointment has been cancelled.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Cancellation Failed',
+        description: error.message || 'Failed to cancel appointment. Please try again.',
       });
     },
-    onError: (error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to cancel appointment. Please try again.",
-      });
-    }
   });
-
-  // Helper function to determine appointment type
-  const determineAppointmentType = (notes: string | null): "video" | "in-person" | "phone" => {
-    if (!notes) return "in-person";
-    if (notes.toLowerCase().includes('video')) return "video";
-    if (notes.toLowerCase().includes('phone')) return "phone";
-    return "in-person";
-  };
-
-  // Helper function to convert time formats
-  const convertTo24HourFormat = (time12h: string): string => {
-    const [time, modifier] = time12h.split(' ');
-    let [hours, minutes] = time.split(':');
-    
-    if (hours === '12') {
-      hours = '00';
-    }
-    
-    if (modifier === 'PM') {
-      hours = String(parseInt(hours, 10) + 12);
-    }
-    
-    return `${hours}:${minutes}`;
-  };
 
   return {
     appointments,
     isLoading,
+    error,
     createAppointment,
     cancelAppointment,
     isBookingModalOpen,
-    setIsBookingModalOpen
+    setIsBookingModalOpen,
   };
 };

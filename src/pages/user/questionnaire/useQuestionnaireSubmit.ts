@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, initializeStorage, ensureBucketExists } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { QuestionnaireFormData } from "./types";
 import { useFileUpload } from "@/hooks/use-file-upload";
@@ -42,6 +42,12 @@ export const useQuestionnaireSubmit = () => {
         title: "Starting Submission",
         description: "Preparing your health assessment...",
       });
+      
+      // Make sure the user_uploads bucket exists
+      const bucketExists = await ensureBucketExists('user_uploads');
+      if (!bucketExists) {
+        throw new Error("Could not initialize storage. Please try again later.");
+      }
       
       let photoUrls: string[] = [];
       let reportUrls: string[] = [];

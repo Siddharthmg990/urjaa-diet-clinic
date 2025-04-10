@@ -25,6 +25,47 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
+// Check if a bucket exists and create it if it doesn't
+export const ensureBucketExists = async (bucketName: string): Promise<boolean> => {
+  try {
+    console.log(`Checking if bucket ${bucketName} exists...`);
+    
+    // First try to get the bucket
+    const { data: bucket, error: getBucketError } = await supabase.storage.getBucket(bucketName);
+    
+    // If bucket exists, return true
+    if (bucket) {
+      console.log(`Bucket ${bucketName} already exists`);
+      return true;
+    }
+    
+    // If it doesn't exist, create it
+    if (getBucketError && getBucketError.message.includes('not found')) {
+      console.log(`Creating bucket ${bucketName}...`);
+      const { data, error: createError } = await supabase.storage.createBucket(bucketName, {
+        public: true, // Make files publicly accessible
+        fileSizeLimit: 50 * 1024 * 1024 // 50MB file size limit
+      });
+      
+      if (createError) {
+        console.error(`Error creating bucket ${bucketName}:`, createError);
+        return false;
+      }
+      
+      console.log(`Bucket ${bucketName} created successfully`);
+      return true;
+    } else if (getBucketError) {
+      console.error(`Error checking bucket ${bucketName}:`, getBucketError);
+      return false;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error(`Unexpected error ensuring bucket ${bucketName} exists:`, error);
+    return false;
+  }
+};
+
 // Initialize storage - simpler approach that doesn't rely on bucket creation
 export const initializeStorage = async () => {
   console.log("Initializing storage...");

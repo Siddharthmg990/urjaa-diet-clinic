@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { supabase, initializeStorage, uploadFile } from '@/integrations/supabase/client';
+import { supabase, initializeStorage, uploadFile, ensureBucketExists } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseFileUploadOptions {
@@ -29,9 +29,14 @@ export const useFileUpload = ({
     if (!userId) return false;
     
     try {
-      const success = await initializeStorage();
-      setIsStorageReady(success);
-      return success;
+      // First ensure the bucket exists
+      const bucketExists = await ensureBucketExists(bucketName);
+      if (!bucketExists) {
+        console.log(`Attempting to initialize storage since bucket ${bucketName} doesn't exist`);
+        await initializeStorage();
+      }
+      setIsStorageReady(bucketExists);
+      return bucketExists;
     } catch (error) {
       console.error("Error checking storage:", error);
       setIsStorageReady(false);
@@ -57,18 +62,20 @@ export const useFileUpload = ({
     const publicUrls: string[] = [];
     
     try {
-      // Check storage before uploading
-      await checkStorage();
+      // Ensure the bucket exists before uploading
+      const bucketExists = await ensureBucketExists(bucketName);
+      if (!bucketExists) {
+        throw new Error(`Storage bucket ${bucketName} could not be created or accessed`);
+      }
       
-      // Use consistent bucket name
-      const targetBucket = bucketName || 'user_uploads';
+      setIsStorageReady(true);
       
       // Upload each file
       for (const file of files) {
         console.log(`Uploading ${file.name}...`);
         
         const { path, publicUrl, error } = await uploadFile(
-          targetBucket, 
+          bucketName, 
           userId, 
           file, 
           { isPublic }
