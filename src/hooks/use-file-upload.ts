@@ -1,12 +1,13 @@
 
-import { useState } from 'react';
-import { supabase, initializeStorage, uploadFile, ensureBucketExists } from '@/integrations/supabase/client';
+import { useState, useEffect } from 'react';
+import { supabase, initializeStorage, uploadFile } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseFileUploadOptions {
   userId: string;
   bucketName: string;
   isPublic?: boolean;
+  fallbackBucket?: string;
 }
 
 interface FileUploadResult {
@@ -19,38 +20,38 @@ export const useFileUpload = ({
   userId,
   bucketName,
   isPublic = true,
+  fallbackBucket
 }: UseFileUploadOptions) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [isStorageReady, setIsStorageReady] = useState(false);
+  const [isBucketReady, setIsBucketReady] = useState(false);
+  const [activeBucket, setActiveBucket] = useState(bucketName);
   const { toast } = useToast();
 
-  // Function to check if storage is initialized
-  const checkStorage = async () => {
-    if (!userId) return false;
-    
-    try {
-      // First ensure the bucket exists
-      const bucketExists = await ensureBucketExists(bucketName);
-      if (!bucketExists) {
-        console.log(`Attempting to initialize storage since bucket ${bucketName} doesn't exist`);
-        await initializeStorage();
+  // Initialize storage right after component mounts if user is available
+  useEffect(() => {
+    const setupStorage = async () => {
+      if (!userId) return;
+      
+      try {
+        const success = await initializeStorage();
+        setIsBucketReady(success);
+        if (success) {
+          setActiveBucket('user_uploads'); // Use our standardized bucket
+        }
+      } catch (error) {
+        console.error("Error initializing storage:", error);
+        setIsBucketReady(false);
       }
-      setIsStorageReady(bucketExists);
-      return bucketExists;
-    } catch (error) {
-      console.error("Error checking storage:", error);
-      setIsStorageReady(false);
-      return false;
+    };
+    
+    if (userId) {
+      setupStorage();
     }
-  };
+  }, [userId]);
 
   const uploadFiles = async (files: File[]): Promise<FileUploadResult> => {
     if (!userId) {
-      return { 
-        fileUrls: [], 
-        publicUrls: [], 
-        error: new Error("User not authenticated") 
-      };
+      return { fileUrls: [], publicUrls: [], error: new Error("User not authenticated") };
     }
 
     if (!files.length) {
@@ -62,24 +63,17 @@ export const useFileUpload = ({
     const publicUrls: string[] = [];
     
     try {
-      // Ensure the bucket exists before uploading
-      const bucketExists = await ensureBucketExists(bucketName);
-      if (!bucketExists) {
-        throw new Error(`Storage bucket ${bucketName} could not be created or accessed`);
-      }
+      // Always use our initialized bucket
+      const currentBucket = 'user_uploads';
       
-      setIsStorageReady(true);
+      // Make sure storage is initialized
+      await initializeStorage();
       
       // Upload each file
       for (const file of files) {
         console.log(`Uploading ${file.name}...`);
         
-        const { path, publicUrl, error } = await uploadFile(
-          bucketName, 
-          userId, 
-          file, 
-          { isPublic }
-        );
+        const { path, publicUrl, error } = await uploadFile(currentBucket, userId, file, { isPublic });
         
         if (error) {
           throw error;
@@ -96,11 +90,8 @@ export const useFileUpload = ({
       toast({
         variant: "destructive",
         title: "Upload failed",
-        description: error instanceof Error 
-          ? error.message 
-          : "File upload failed. Please try again."
+        description: error instanceof Error ? error.message : "File upload failed"
       });
-      
       return { 
         fileUrls, 
         publicUrls, 
@@ -114,7 +105,7 @@ export const useFileUpload = ({
   return { 
     uploadFiles, 
     isUploading, 
-    isStorageReady,
-    checkStorage
+    isBucketReady, 
+    activeBucket: 'user_uploads' // Always use our standardized bucket
   };
 };

@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppointments } from "@/hooks/use-appointments";
 
+// Half-hour time slots from 9am to 5pm
 const availableTimeSlots = [
   "9:00 AM", "9:30 AM",
   "10:00 AM", "10:30 AM", 
@@ -38,6 +39,7 @@ const Appointments = () => {
   const [selectedTime, setSelectedTime] = useState("");
   const { user, isAuthenticated } = useAuth();
 
+  // Use the custom hook for appointments
   const {
     appointments,
     isLoading,
@@ -46,7 +48,7 @@ const Appointments = () => {
     isBookingModalOpen,
     setIsBookingModalOpen
   } = useAppointments({
-    userId: user?.id || '',
+    userId: user?.id,
     isAuthenticated: !!isAuthenticated
   });
 
@@ -55,16 +57,8 @@ const Appointments = () => {
       return;
     }
     
-    const formattedDate = date.toISOString().split('T')[0];
-    console.log("Booking appointment with:", {
-      date: formattedDate,
-      time: selectedTime,
-      type: bookingType,
-      userId: user.id
-    });
-
     createAppointment.mutate({
-      date: formattedDate,
+      date,
       time: selectedTime,
       type: bookingType,
       userId: user.id

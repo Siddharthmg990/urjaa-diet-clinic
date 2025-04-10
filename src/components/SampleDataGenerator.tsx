@@ -22,8 +22,6 @@ export const SampleDataGenerator = () => {
       try {
         console.log("Initializing storage from SampleDataGenerator...");
         await initializeStorage();
-        // Also ensure our two buckets exist
-        await ensureBucketExists('user_uploads');
         setStorageReady(true);
       } catch (error) {
         console.error("Error initializing storage:", error);
@@ -53,7 +51,6 @@ export const SampleDataGenerator = () => {
       if (!storageReady) {
         console.log("Initializing storage before generating sample data...");
         await initializeStorage();
-        await ensureBucketExists('user_uploads');
       }
       
       const result = await createSampleData(user.id);
