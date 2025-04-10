@@ -36,7 +36,7 @@ export const DocumentsReportsSection: React.FC<DocumentsReportsSectionProps> = (
         </p>
         
         {!storageStatus.isBucketReady && (
-          <Alert className="mb-4" variant="warning">
+          <Alert className="mb-4">
             <Info className="h-4 w-4" />
             <AlertTitle>Storage Setup</AlertTitle>
             <AlertDescription>

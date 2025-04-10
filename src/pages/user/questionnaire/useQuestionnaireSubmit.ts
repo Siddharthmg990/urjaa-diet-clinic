@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, initializeStorage } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { QuestionnaireFormData } from "./types";
 import { useFileUpload } from "@/hooks/use-file-upload";
@@ -13,19 +13,17 @@ export const useQuestionnaireSubmit = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Use a single shared bucket for both types of files
+  // Simpler file upload configuration
   const photoUploader = useFileUpload({
     userId: user?.id || '',
     bucketName: 'user_uploads',
-    fallbackBucket: 'user_uploads',
-    isPublic: false // More secure for health photos
+    isPublic: false
   });
 
   const reportUploader = useFileUpload({
     userId: user?.id || '',
     bucketName: 'user_uploads',
-    fallbackBucket: 'user_uploads',
-    isPublic: false // More secure for medical reports
+    isPublic: false
   });
   
   const handleSubmit = async (formData: QuestionnaireFormData, validateStep: (step: number) => boolean) => {
@@ -40,14 +38,9 @@ export const useQuestionnaireSubmit = () => {
         throw new Error("User not authenticated");
       }
       
-      // Ensure storage is initialized before upload
-      await initializeStorage();
-      
-      console.log("Uploading photos and medical reports...");
-      
       toast({
-        title: "Preparing Files",
-        description: "Please wait while we prepare your submission...",
+        title: "Starting Submission",
+        description: "Preparing your health assessment...",
       });
       
       let photoUrls: string[] = [];
@@ -55,30 +48,52 @@ export const useQuestionnaireSubmit = () => {
       
       // Only attempt photo upload if there are photos
       if (formData.photos.length > 0) {
+        toast({
+          title: "Uploading Photos",
+          description: "Please wait...",
+        });
+        
         const photoResult = await photoUploader.uploadFiles(formData.photos);
+        
         if (photoResult.error) {
-          throw photoResult.error;
+          console.error("Photo upload error:", photoResult.error);
+          throw new Error(`Photo upload failed: ${photoResult.error.message}`);
         }
+        
         photoUrls = photoResult.fileUrls;
         
-        toast({
-          title: "Photos Uploaded",
-          description: `Successfully uploaded ${photoUrls.length} photos`,
-        });
+        if (photoUrls.length > 0) {
+          toast({
+            title: "Photos Uploaded",
+            description: `Successfully uploaded ${photoUrls.length} photos`,
+          });
+        } else {
+          console.warn("No photo URLs returned despite successful upload");
+        }
       }
       
       // Only attempt report upload if there are reports
       if (formData.medicalReports.length > 0) {
+        toast({
+          title: "Uploading Reports",
+          description: "Please wait...",
+        });
+        
         const reportResult = await reportUploader.uploadFiles(formData.medicalReports);
+        
         if (reportResult.error) {
-          throw reportResult.error;
+          console.error("Report upload error:", reportResult.error);
+          throw new Error(`Medical report upload failed: ${reportResult.error.message}`);
         }
+        
         reportUrls = reportResult.fileUrls;
         
-        toast({
-          title: "Reports Uploaded",
-          description: `Successfully uploaded ${reportUrls.length} reports`,
-        });
+        if (reportUrls.length > 0) {
+          toast({
+            title: "Reports Uploaded",
+            description: `Successfully uploaded ${reportUrls.length} reports`,
+          });
+        }
       }
       
       console.log("Inserting health assessment");
@@ -110,11 +125,12 @@ export const useQuestionnaireSubmit = () => {
           activities: formData.activities,
           photo_urls: photoUrls,
           medical_report_urls: reportUrls
-        }]);
+        }])
+        .select();
       
       if (error) {
         console.error("Health assessment insert error:", error);
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
       
       toast({

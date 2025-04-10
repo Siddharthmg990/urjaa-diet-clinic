@@ -25,54 +25,30 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-// Create a simplified version of the bucket check/creation function
-export const ensureBucketExists = async (bucketId: string, isPublic = true): Promise<boolean> => {
-  if (!bucketId) {
-    console.error('Invalid bucket ID provided');
-    return false;
-  }
-
+// Initialize storage - simpler approach that doesn't rely on bucket creation
+export const initializeStorage = async () => {
+  console.log("Initializing storage...");
   try {
-    // First check if the bucket exists
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === bucketId);
-    
-    if (bucketExists) {
-      console.log(`Bucket ${bucketId} already exists`);
-      return true;
-    }
-    
-    console.log(`Creating bucket ${bucketId}...`);
-    const { error } = await supabase.storage.createBucket(bucketId, {
-      public: isPublic,
-      fileSizeLimit: 10485760 // 10MB
-    });
+    // Instead of creating buckets, let's verify if we can access the storage API
+    const { data, error } = await supabase.storage.listBuckets();
     
     if (error) {
-      console.error(`Error creating bucket ${bucketId}:`, error);
+      console.error("Storage initialization error:", error);
       return false;
     }
     
-    console.log(`Successfully created bucket ${bucketId}`);
-    return true;
+    // Look for existing buckets we can use
+    const userUploadsBucket = data?.find(bucket => bucket.name === 'user_uploads');
+    
+    if (userUploadsBucket) {
+      console.log("Found user_uploads bucket - storage ready to use");
+      return true;
+    } else {
+      console.log("No suitable bucket found, will attempt to use default");
+      return true; // Return true anyway - we'll handle upload errors at upload time
+    }
   } catch (error) {
-    console.error(`Unexpected error with bucket ${bucketId}:`, error);
-    return false;
-  }
-};
-
-// Initialize storage with a single bucket for better reliability
-export const initializeStorage = async () => {
-  console.log("Initializing storage bucket...");
-  
-  // Create a single bucket for all uploads
-  const bucketCreated = await ensureBucketExists('user_uploads', true);
-  
-  if (bucketCreated) {
-    console.log("Storage initialization complete");
-    return true;
-  } else {
-    console.error("Failed to initialize storage");
+    console.error("Unexpected error initializing storage:", error);
     return false;
   }
 };
@@ -86,36 +62,40 @@ export const uploadFile = async (
     customPath?: string, 
     isPublic?: boolean,
   }
-): Promise<{ path: string | null; publicUrl: string | null; error: Error | null }> => {
+): Promise<{ path: string | null; publicUrl: string | null; error: Error | null }> {
   try {
     // Create file path with user ID for organization
     const fileId = Date.now();
-    const fileExt = file.name.split('.').pop();
-    const safeFileName = `${userId}/${fileId}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const fileName = options?.customPath || safeFileName;
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = options?.customPath || `${userId}/${fileId}_${safeFileName}`;
     
-    console.log(`Uploading file to ${bucketId}/${fileName}...`);
+    console.log(`Attempting to upload file to ${bucketId}/${filePath}...`);
     
-    // Upload file
+    // Upload file with proper error handling
     const { data, error } = await supabase.storage
       .from(bucketId)
-      .upload(fileName, file, {
+      .upload(filePath, file, {
         upsert: true,
         cacheControl: '3600'
       });
     
     if (error) {
+      // Detailed error logging for debugging
       console.error(`Upload error:`, error);
-      throw error;
+      return { 
+        path: null, 
+        publicUrl: null, 
+        error: new Error(error.message || "Upload failed") 
+      };
     }
     
     // Get public URL if successful
-    const { data: { publicUrl } } = supabase.storage.from(bucketId).getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabase.storage.from(bucketId).getPublicUrl(filePath);
     
-    console.log(`File uploaded successfully to ${fileName}`);
-    return { path: fileName, publicUrl, error: null };
+    console.log(`File uploaded successfully to ${filePath}`);
+    return { path: filePath, publicUrl, error: null };
   } catch (error) {
-    console.error(`Error uploading file to ${bucketId}:`, error);
+    console.error(`Error in uploadFile:`, error);
     return { 
       path: null, 
       publicUrl: null, 

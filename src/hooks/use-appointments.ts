@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Appointment } from "@/types/supabase";
 import { format } from "date-fns";
 
 interface AppointmentDisplay {
@@ -74,14 +73,15 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
       }
     },
     enabled: !!isAuthenticated && !!userId,
-    retry: 2,
     staleTime: 30000,
   });
 
   // Create appointment mutation
   const createAppointment = useMutation({
     mutationFn: async ({ date, time, type, userId }: BookAppointmentParams) => {
-      if (!date || !time) throw new Error("Date and time are required");
+      if (!date || !time || !userId) {
+        throw new Error("Date, time, and user ID are required");
+      }
       
       console.log("Creating appointment:", { 
         date: format(date, "yyyy-MM-dd"), 
@@ -90,8 +90,7 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
         userId 
       });
       
-      // Fix: Assign a default dietitian ID that exists in your database
-      // For now, we'll use null since we don't know which dietitian IDs exist
+      // Create appointment with minimal required fields
       const appointmentData = {
         appointment_date: format(date, "yyyy-MM-dd"),
         appointment_time: time,
@@ -99,7 +98,6 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
         reason: `${type} consultation request`,
         notes: `${type} session requested by client`,
         user_id: userId,
-        dietitian_id: null // Changed from hardcoded UUID to null
       };
 
       const { data, error } = await supabase
@@ -109,10 +107,14 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
 
       if (error) {
         console.error("Appointment creation error:", error);
-        throw error;
+        throw new Error(`Failed to book appointment: ${error.message}`);
       }
       
-      return data;
+      if (!data || data.length === 0) {
+        throw new Error("No data returned after creating appointment");
+      }
+      
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -135,13 +137,20 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
   // Cancel appointment mutation
   const cancelAppointment = useMutation({
     mutationFn: async (appointmentId: string) => {
+      if (!appointmentId) {
+        throw new Error("Appointment ID is required");
+      }
+      
       const { data, error } = await supabase
         .from('appointments')
         .update({ status: 'cancelled' })
         .eq('id', appointmentId)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(`Failed to cancel appointment: ${error.message}`);
+      }
+      
       return data;
     },
     onSuccess: () => {

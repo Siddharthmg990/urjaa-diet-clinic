@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase, initializeStorage, uploadFile } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -7,7 +7,6 @@ interface UseFileUploadOptions {
   userId: string;
   bucketName: string;
   isPublic?: boolean;
-  fallbackBucket?: string;
 }
 
 interface FileUploadResult {
@@ -20,38 +19,33 @@ export const useFileUpload = ({
   userId,
   bucketName,
   isPublic = true,
-  fallbackBucket
 }: UseFileUploadOptions) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [isBucketReady, setIsBucketReady] = useState(false);
-  const [activeBucket, setActiveBucket] = useState(bucketName);
+  const [isStorageReady, setIsStorageReady] = useState(false);
   const { toast } = useToast();
 
-  // Initialize storage right after component mounts if user is available
-  useEffect(() => {
-    const setupStorage = async () => {
-      if (!userId) return;
-      
-      try {
-        const success = await initializeStorage();
-        setIsBucketReady(success);
-        if (success) {
-          setActiveBucket('user_uploads'); // Use our standardized bucket
-        }
-      } catch (error) {
-        console.error("Error initializing storage:", error);
-        setIsBucketReady(false);
-      }
-    };
+  // Function to check if storage is initialized
+  const checkStorage = async () => {
+    if (!userId) return false;
     
-    if (userId) {
-      setupStorage();
+    try {
+      const success = await initializeStorage();
+      setIsStorageReady(success);
+      return success;
+    } catch (error) {
+      console.error("Error checking storage:", error);
+      setIsStorageReady(false);
+      return false;
     }
-  }, [userId]);
+  };
 
   const uploadFiles = async (files: File[]): Promise<FileUploadResult> => {
     if (!userId) {
-      return { fileUrls: [], publicUrls: [], error: new Error("User not authenticated") };
+      return { 
+        fileUrls: [], 
+        publicUrls: [], 
+        error: new Error("User not authenticated") 
+      };
     }
 
     if (!files.length) {
@@ -63,17 +57,22 @@ export const useFileUpload = ({
     const publicUrls: string[] = [];
     
     try {
-      // Always use our initialized bucket
-      const currentBucket = 'user_uploads';
+      // Check storage before uploading
+      await checkStorage();
       
-      // Make sure storage is initialized
-      await initializeStorage();
+      // Use consistent bucket name
+      const targetBucket = bucketName || 'user_uploads';
       
       // Upload each file
       for (const file of files) {
         console.log(`Uploading ${file.name}...`);
         
-        const { path, publicUrl, error } = await uploadFile(currentBucket, userId, file, { isPublic });
+        const { path, publicUrl, error } = await uploadFile(
+          targetBucket, 
+          userId, 
+          file, 
+          { isPublic }
+        );
         
         if (error) {
           throw error;
@@ -90,8 +89,11 @@ export const useFileUpload = ({
       toast({
         variant: "destructive",
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "File upload failed"
+        description: error instanceof Error 
+          ? error.message 
+          : "File upload failed. Please try again."
       });
+      
       return { 
         fileUrls, 
         publicUrls, 
@@ -105,7 +107,7 @@ export const useFileUpload = ({
   return { 
     uploadFiles, 
     isUploading, 
-    isBucketReady, 
-    activeBucket: 'user_uploads' // Always use our standardized bucket
+    isStorageReady,
+    checkStorage
   };
 };
