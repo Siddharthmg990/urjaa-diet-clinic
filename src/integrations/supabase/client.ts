@@ -86,7 +86,7 @@ export const uploadFile = async (
     customPath?: string, 
     isPublic?: boolean,
   }
-) => {
+): Promise<{ path: string | null; publicUrl: string | null; error: Error | null }> => {
   try {
     // Create file path with user ID for organization
     const fileId = Date.now();
