@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -17,15 +16,20 @@ import { format, isToday, isAfter, isPast, addDays } from "date-fns";
 import { Calendar as CalendarIcon, Clock, VideoIcon, MapPin, Phone } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppointments } from "@/hooks/use-appointments";
 
-// Half-hour time slots from 11am to 3pm
+// Half-hour time slots from 9am to 5pm
 const availableTimeSlots = [
+  "9:00 AM", "9:30 AM",
+  "10:00 AM", "10:30 AM", 
   "11:00 AM", "11:30 AM", 
   "12:00 PM", "12:30 PM", 
   "1:00 PM", "1:30 PM", 
-  "2:00 PM", "2:30 PM"
+  "2:00 PM", "2:30 PM",
+  "3:00 PM", "3:30 PM",
+  "4:00 PM", "4:30 PM"
 ];
 
 const Appointments = () => {
@@ -52,7 +56,7 @@ const Appointments = () => {
     if (!user?.id || !date || !selectedTime) {
       return;
     }
-
+    
     createAppointment.mutate({
       date,
       time: selectedTime,
@@ -215,6 +219,17 @@ const Appointments = () => {
               
               <div>
                 <h3 className="font-medium mb-2">Select Time</h3>
+                {selectedTime ? (
+                  <Alert className="mb-2">
+                    <AlertTitle>Selected Time</AlertTitle>
+                    <AlertDescription>{selectedTime}</AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert variant="destructive" className="mb-2">
+                    <AlertTitle>Required</AlertTitle>
+                    <AlertDescription>Please select a time</AlertDescription>
+                  </Alert>
+                )}
                 <ScrollArea className="h-[180px]">
                   <div className="grid grid-cols-2 gap-2">
                     {availableTimeSlots.map((time) => (
@@ -249,7 +264,11 @@ const Appointments = () => {
               <Button variant="outline" onClick={() => setIsBookingModalOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleBookAppointment} className="bg-nourish-primary">
+              <Button 
+                onClick={handleBookAppointment} 
+                className="bg-nourish-primary"
+                disabled={!selectedTime || !date}
+              >
                 Request Appointment
               </Button>
             </DialogFooter>

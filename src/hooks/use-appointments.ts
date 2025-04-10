@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Appointment } from "@/types/supabase";
 import { format } from "date-fns";
@@ -39,33 +39,43 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
     queryFn: async () => {
       if (!userId) return [];
 
-      const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          *,
-          dietitian:profiles!dietitian_id(name)
-        `)
-        .eq('user_id', userId)
-        .order('appointment_date', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('appointments')
+          .select(`
+            *,
+            dietitian:profiles!dietitian_id(name)
+          `)
+          .eq('user_id', userId)
+          .order('appointment_date', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching appointments:', error);
-        throw error;
+        if (error) {
+          console.error('Error fetching appointments:', error);
+          throw error;
+        }
+
+        return data.map((appointment) => ({
+          id: appointment.id,
+          date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
+          dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
+          type: determineAppointmentType(appointment.notes),
+          duration: 30,
+          status: appointment.status || "pending",
+          notes: appointment.reason || ""
+        }));
+      } catch (error) {
+        console.error('Failed to fetch appointments:', error);
+        toast({
+          variant: "destructive",
+          title: "Could not load appointments",
+          description: "Please try again later",
+        });
+        return [];
       }
-
-      return data.map((appointment) => ({
-        id: appointment.id,
-        date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
-        dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-        type: determineAppointmentType(appointment.notes),
-        duration: 30,
-        status: appointment.status || "pending",
-        notes: appointment.reason || ""
-      }));
     },
     enabled: !!isAuthenticated && !!userId,
-    retry: 2, // Limit retries to reduce wait time on failures
-    staleTime: 30000, // Data is fresh for 30 seconds
+    retry: 2,
+    staleTime: 30000,
   });
 
   // Create appointment mutation
@@ -80,14 +90,16 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
         userId 
       });
       
+      // Fix: Assign a default dietitian ID that exists in your database
+      // For now, we'll use null since we don't know which dietitian IDs exist
       const appointmentData = {
         appointment_date: format(date, "yyyy-MM-dd"),
         appointment_time: time,
         status: 'requested',
-        reason: "Consultation request",
-        notes: `${type} session requested`,
+        reason: `${type} consultation request`,
+        notes: `${type} session requested by client`,
         user_id: userId,
-        dietitian_id: "00000000-0000-0000-0000-000000000000" // Default dietitian ID
+        dietitian_id: null // Changed from hardcoded UUID to null
       };
 
       const { data, error } = await supabase

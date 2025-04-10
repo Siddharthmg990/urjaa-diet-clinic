@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase, ensureBucketExists, uploadFile } from '@/integrations/supabase/client';
+import { supabase, initializeStorage, uploadFile } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseFileUploadOptions {
@@ -20,39 +20,34 @@ export const useFileUpload = ({
   userId,
   bucketName,
   isPublic = true,
-  fallbackBucket = 'images'
+  fallbackBucket
 }: UseFileUploadOptions) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isBucketReady, setIsBucketReady] = useState(false);
   const [activeBucket, setActiveBucket] = useState(bucketName);
   const { toast } = useToast();
 
-  // Check bucket status when component mounts
+  // Initialize storage right after component mounts if user is available
   useEffect(() => {
-    const checkBucket = async () => {
+    const setupStorage = async () => {
+      if (!userId) return;
+      
       try {
-        let exists = await ensureBucketExists(bucketName, isPublic);
-        
-        if (!exists && fallbackBucket) {
-          console.log(`Primary bucket ${bucketName} unavailable, checking fallback ${fallbackBucket}`);
-          exists = await ensureBucketExists(fallbackBucket, true);
-          
-          if (exists) {
-            setActiveBucket(fallbackBucket);
-          }
+        const success = await initializeStorage();
+        setIsBucketReady(success);
+        if (success) {
+          setActiveBucket('user_uploads'); // Use our standardized bucket
         }
-        
-        setIsBucketReady(exists);
       } catch (error) {
-        console.error("Error checking bucket status:", error);
+        console.error("Error initializing storage:", error);
         setIsBucketReady(false);
       }
     };
     
     if (userId) {
-      checkBucket();
+      setupStorage();
     }
-  }, [userId, bucketName, fallbackBucket, isPublic]);
+  }, [userId]);
 
   const uploadFiles = async (files: File[]): Promise<FileUploadResult> => {
     if (!userId) {
@@ -66,32 +61,19 @@ export const useFileUpload = ({
     setIsUploading(true);
     const fileUrls: string[] = [];
     const publicUrls: string[] = [];
-
+    
     try {
-      // Double-check bucket exists just before upload
-      const currentBucket = activeBucket || bucketName;
-      let bucketExists = await ensureBucketExists(currentBucket, isPublic);
+      // Always use our initialized bucket
+      const currentBucket = 'user_uploads';
       
-      // Try fallback if primary bucket isn't available
-      if (!bucketExists && fallbackBucket && currentBucket !== fallbackBucket) {
-        console.log(`Switching to fallback bucket ${fallbackBucket} for upload`);
-        bucketExists = await ensureBucketExists(fallbackBucket, true);
-        
-        if (bucketExists) {
-          setActiveBucket(fallbackBucket);
-        } else {
-          throw new Error(`Cannot upload files. Storage is not properly configured.`);
-        }
-      } else if (!bucketExists) {
-        throw new Error(`Cannot upload files. Bucket "${currentBucket}" is not available.`);
-      }
-
+      // Make sure storage is initialized
+      await initializeStorage();
+      
       // Upload each file
       for (const file of files) {
-        const uploadBucket = activeBucket || bucketName;
-        console.log(`Uploading ${file.name} to ${uploadBucket} bucket...`);
+        console.log(`Uploading ${file.name}...`);
         
-        const { path, publicUrl, error } = await uploadFile(uploadBucket, userId, file, { isPublic });
+        const { path, publicUrl, error } = await uploadFile(currentBucket, userId, file, { isPublic });
         
         if (error) {
           throw error;
@@ -101,9 +83,10 @@ export const useFileUpload = ({
         if (publicUrl) publicUrls.push(publicUrl);
       }
 
+      console.log(`Successfully uploaded ${files.length} files`);
       return { fileUrls, publicUrls, error: null };
     } catch (error) {
-      console.error(`Error in upload process:`, error);
+      console.error(`Upload error:`, error);
       toast({
         variant: "destructive",
         title: "Upload failed",
@@ -123,6 +106,6 @@ export const useFileUpload = ({
     uploadFiles, 
     isUploading, 
     isBucketReady, 
-    activeBucket 
+    activeBucket: 'user_uploads' // Always use our standardized bucket
   };
 };

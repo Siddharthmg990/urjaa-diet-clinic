@@ -13,16 +13,19 @@ export const useQuestionnaireSubmit = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   
+  // Use a single shared bucket for both types of files
   const photoUploader = useFileUpload({
     userId: user?.id || '',
-    bucketName: 'health_photos',
-    fallbackBucket: 'images'
+    bucketName: 'user_uploads',
+    fallbackBucket: 'user_uploads',
+    isPublic: false // More secure for health photos
   });
 
   const reportUploader = useFileUpload({
     userId: user?.id || '',
-    bucketName: 'medical_reports',
-    fallbackBucket: 'images'
+    bucketName: 'user_uploads',
+    fallbackBucket: 'user_uploads',
+    isPublic: false // More secure for medical reports
   });
   
   const handleSubmit = async (formData: QuestionnaireFormData, validateStep: (step: number) => boolean) => {
@@ -37,29 +40,46 @@ export const useQuestionnaireSubmit = () => {
         throw new Error("User not authenticated");
       }
       
+      // Ensure storage is initialized before upload
       await initializeStorage();
       
       console.log("Uploading photos and medical reports...");
       
       toast({
-        title: "Uploading Files",
-        description: "Please wait while your files are being uploaded...",
+        title: "Preparing Files",
+        description: "Please wait while we prepare your submission...",
       });
       
-      const { fileUrls: photoUrls, error: photoError } = await photoUploader.uploadFiles(formData.photos);
-      if (photoError) {
-        throw photoError;
+      let photoUrls: string[] = [];
+      let reportUrls: string[] = [];
+      
+      // Only attempt photo upload if there are photos
+      if (formData.photos.length > 0) {
+        const photoResult = await photoUploader.uploadFiles(formData.photos);
+        if (photoResult.error) {
+          throw photoResult.error;
+        }
+        photoUrls = photoResult.fileUrls;
+        
+        toast({
+          title: "Photos Uploaded",
+          description: `Successfully uploaded ${photoUrls.length} photos`,
+        });
       }
       
-      const { fileUrls: reportUrls, error: reportError } = await reportUploader.uploadFiles(formData.medicalReports);
-      if (reportError) {
-        throw reportError;
+      // Only attempt report upload if there are reports
+      if (formData.medicalReports.length > 0) {
+        const reportResult = await reportUploader.uploadFiles(formData.medicalReports);
+        if (reportResult.error) {
+          throw reportResult.error;
+        }
+        reportUrls = reportResult.fileUrls;
+        
+        toast({
+          title: "Reports Uploaded",
+          description: `Successfully uploaded ${reportUrls.length} reports`,
+        });
       }
-      
-      toast({
-        title: "Files Uploaded",
-        description: "Your files have been uploaded successfully.",
-      });
       
       console.log("Inserting health assessment");
       const { data, error } = await supabase
