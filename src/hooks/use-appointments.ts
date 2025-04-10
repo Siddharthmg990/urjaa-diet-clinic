@@ -58,8 +58,10 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
           id: appointment.id,
           date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
           dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-          type: determineAppointmentType(appointment.notes),
-          duration: 30,
+          // Determine appointment type from notes or reason
+          type: determineAppointmentType(appointment.notes || appointment.reason),
+          // Hard-coded duration since it's not in the database
+          duration: 30, 
           status: appointment.status || "pending",
           notes: appointment.reason || ""
         }));
@@ -90,8 +92,7 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
         userId 
       });
       
-      // Fix: Assign a default dietitian ID that exists in your database
-      // For now, we'll use null since we don't know which dietitian IDs exist
+      // Only include fields that exist in the database schema
       const appointmentData = {
         appointment_date: format(date, "yyyy-MM-dd"),
         appointment_time: time,
@@ -99,7 +100,7 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
         reason: `${type} consultation request`,
         notes: `${type} session requested by client`,
         user_id: userId,
-        dietitian_id: null // Changed from hardcoded UUID to null
+        dietitian_id: null // Default value for now
       };
 
       const { data, error } = await supabase
@@ -163,8 +164,9 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
   // Helper function to determine appointment type
   const determineAppointmentType = (notes: string | null): "video" | "in-person" | "phone" => {
     if (!notes) return "in-person";
-    if (notes.toLowerCase().includes('video')) return "video";
-    if (notes.toLowerCase().includes('phone')) return "phone";
+    const notesLower = notes.toLowerCase();
+    if (notesLower.includes('video')) return "video";
+    if (notesLower.includes('phone')) return "phone";
     return "in-person";
   };
 
