@@ -35,6 +35,38 @@ class AuthService:
         except Exception as e:
             return {"error": str(e)}
     
+    def login_with_google(self, access_token):
+        try:
+            client = self.supabase_service.get_client()
+            result = client.auth.sign_in_with_oauth({
+                "provider": "google",
+                "access_token": access_token
+            })
+            
+            if result.user and result.session:
+                # Get profile info
+                profile = client.table('profiles').select('*').eq('id', result.user.id).single().execute()
+                
+                return {
+                    "user": {
+                        "id": result.user.id,
+                        "email": result.user.email,
+                        "name": profile.data.get('name') if profile.data else result.user.user_metadata.get('name', 'User'),
+                        "role": profile.data.get('role') if profile.data else 'user',
+                        "phone": profile.data.get('phone'),
+                        "phoneVerified": profile.data.get('phone_verified')
+                    },
+                    "session": {
+                        "access_token": result.session.access_token,
+                        "refresh_token": result.session.refresh_token,
+                        "expires_at": result.session.expires_at
+                    }
+                }
+            else:
+                return {"error": "Google authentication failed"}
+        except Exception as e:
+            return {"error": str(e)}
+    
     def register(self, email, password, name):
         try:
             client = self.supabase_service.get_client()

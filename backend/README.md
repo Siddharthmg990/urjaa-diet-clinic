@@ -25,3 +25,17 @@ python app.py
 ```
 
 The API will be available at `http://localhost:5000`.
+
+## Google OAuth Setup
+
+To enable Google OAuth login, you need to:
+
+1. Go to the Google Cloud Console and create OAuth credentials
+2. Configure your Supabase project with these credentials
+   - In the Supabase Dashboard, go to Authentication > Providers > Google
+   - Enter your Client ID and Client Secret
+   - Set the authorized redirect URI to your Supabase auth callback URL
+3. Make sure to set the appropriate Site URL and redirect URLs in your Supabase Authentication settings
+
+The application handles the OAuth flow by opening a popup window and exchanging the access token with Supabase.
+

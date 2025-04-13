@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { type Session, type Provider } from '@supabase/supabase-js';
@@ -139,17 +138,101 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const loginWithProvider = async (provider: Provider) => {
-    // For now, we'll just show a toast explaining this isn't implemented yet
-    toast({
-      variant: "destructive",
-      title: `${provider} login not implemented`,
-      description: "Social login functionality is not available in the Flask backend yet.",
-    });
+  const handleGoogleAuth = async () => {
+    try {
+      // Open a popup window for Google OAuth
+      const googleAuthUrl = 'https://frsijcoffdlkwzrbwjhp.supabase.co/auth/v1/authorize?provider=google';
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const popup = window.open(
+        googleAuthUrl,
+        'GoogleAuth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+      
+      if (!popup) {
+        throw new Error("Popup blocked. Please allow popups for this site.");
+      }
+      
+      // Poll for changes and access token
+      const checkPopup = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(checkPopup);
+            toast({
+              variant: "destructive",
+              title: "Authentication cancelled",
+              description: "You closed the authentication window",
+            });
+            return;
+          }
+          
+          // Try to access the URL to see if redirected to callback
+          if (popup.location.href.includes('access_token=')) {
+            clearInterval(checkPopup);
+            
+            // Parse the access token from the URL
+            const accessToken = new URLSearchParams(
+              popup.location.hash.substring(1)
+            ).get('access_token');
+            
+            popup.close();
+            
+            if (accessToken) {
+              return completeGoogleAuth(accessToken);
+            } else {
+              throw new Error("Failed to get access token");
+            }
+          }
+        } catch (err) {
+          // This error is expected due to CORS when polling
+          // We ignore it and keep polling
+        }
+      }, 500);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Google login failed",
+        description: error.message || "Failed to authenticate with Google",
+      });
+      throw error;
+    }
+  };
+  
+  const completeGoogleAuth = async (accessToken: string) => {
+    try {
+      const { data } = await apiClient.post('/auth/google-login', {
+        access_token: accessToken
+      });
+      
+      setUser(data.user);
+      setSession(data.session as Session);
+      
+      // Store session in localStorage for API client interceptor
+      localStorage.setItem('supabase.auth.token', JSON.stringify({
+        currentSession: data.session
+      }));
+      
+      toast({
+        title: "Login successful",
+        description: `Welcome${data.user.name ? ', ' + data.user.name : ''}!`,
+      });
+      
+      navigate("/user/dashboard", { replace: true });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Google login failed",
+        description: error.response?.data?.error || "Failed to complete Google authentication",
+      });
+      throw error;
+    }
   };
 
-  const loginWithGoogle = () => loginWithProvider('google');
-  const registerWithGoogle = () => loginWithGoogle();
+  const loginWithGoogle = handleGoogleAuth;
+  const registerWithGoogle = handleGoogleAuth;
 
   const verifyPhone = async (phone: string, otp: string, name?: string) => {
     setIsLoading(true);

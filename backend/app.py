@@ -1,5 +1,5 @@
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
 import os
 import json
@@ -34,6 +34,19 @@ def login():
     password = data.get('password')
     
     result = auth_service.login(email, password)
+    if result.get('error'):
+        return jsonify(result), 401
+    return jsonify(result)
+
+@app.route('/api/auth/google-login', methods=['POST'])
+def google_login():
+    data = request.json
+    access_token = data.get('access_token')
+    
+    if not access_token:
+        return jsonify({"error": "Access token is required"}), 400
+    
+    result = auth_service.login_with_google(access_token)
     if result.get('error'):
         return jsonify(result), 401
     return jsonify(result)
