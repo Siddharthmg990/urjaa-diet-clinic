@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { supabase, initializeStorage, uploadFile } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import apiClient from '@/api/client';
 
 interface UseFileUploadOptions {
   userId: string;
@@ -33,9 +33,9 @@ export const useFileUpload = ({
       if (!userId) return;
       
       try {
-        const success = await initializeStorage();
-        setIsBucketReady(success);
-        if (success) {
+        const { data } = await apiClient.post('/storage/initialize');
+        setIsBucketReady(data.success);
+        if (data.success) {
           setActiveBucket('user_uploads'); // Use our standardized bucket
         }
       } catch (error) {
@@ -67,20 +67,32 @@ export const useFileUpload = ({
       const currentBucket = 'user_uploads';
       
       // Make sure storage is initialized
-      await initializeStorage();
+      await apiClient.post('/storage/initialize');
       
       // Upload each file
       for (const file of files) {
         console.log(`Uploading ${file.name}...`);
         
-        const { path, publicUrl, error } = await uploadFile(currentBucket, userId, file, { isPublic });
+        // Create form data for file upload
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucket_id', currentBucket);
+        formData.append('user_id', userId);
+        formData.append('is_public', isPublic.toString());
         
-        if (error) {
-          throw error;
+        // Upload the file
+        const { data } = await apiClient.post('/storage/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        if (data.error) {
+          throw new Error(data.error);
         }
         
-        if (path) fileUrls.push(path);
-        if (publicUrl) publicUrls.push(publicUrl);
+        if (data.path) fileUrls.push(data.path);
+        if (data.publicUrl) publicUrls.push(data.publicUrl);
       }
 
       console.log(`Successfully uploaded ${files.length} files`);

@@ -1,10 +1,11 @@
+
 import { createContext, useContext, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { type User, type Session, type Provider } from '@supabase/supabase-js';
+import { type Session, type Provider } from '@supabase/supabase-js';
 import { toast as sonnerToast } from 'sonner';
 import { useNavigate } from "react-router-dom";
-import { Profile } from "@/types/supabase";
+import apiClient from "@/api/client";
+import { setupAppOnLoad } from "@/utils/setupAppOnLoad";
 
 type UserRole = "user" | "dietitian";
 
@@ -42,117 +43,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Initialize app and check for existing session
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('Auth state changed:', event);
-        setSession(currentSession);
+    const initializeApp = async () => {
+      setIsLoading(true);
+      
+      // Initialize storage
+      await setupAppOnLoad();
+      
+      try {
+        // Check for existing session
+        const { data } = await apiClient.get('/auth/session');
         
-        if (currentSession?.user) {
-          setTimeout(async () => {
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', currentSession.user.id)
-                .single();
-                
-              if (error) throw error;
-              
-              const typedProfile = profile as Profile;
-              
-              setUser({
-                id: currentSession.user.id,
-                email: currentSession.user.email,
-                name: typedProfile?.name || currentSession.user.user_metadata?.name || 'User',
-                role: (typedProfile?.role as UserRole) || 'user',
-                phone: typedProfile?.phone,
-                phoneVerified: typedProfile?.phone_verified
-              });
-
-              if (event === 'SIGNED_IN') {
-                navigate('/user/dashboard', { replace: true });
-              }
-            } catch (error) {
-              console.error('Error fetching user profile:', error);
-              setUser({
-                id: currentSession.user.id,
-                email: currentSession.user.email,
-                name: currentSession.user.user_metadata?.name || 'User',
-                role: 'user',
-                phone: null,
-                phoneVerified: false
-              });
-              
-              if (event === 'SIGNED_IN') {
-                navigate('/user/dashboard', { replace: true });
-              }
-            } finally {
-              setIsLoading(false);
-            }
-          }, 0);
+        if (data.user && data.session) {
+          setUser(data.user);
+          setSession(data.session as Session);
         } else {
           setUser(null);
-          setIsLoading(false);
+          setSession(null);
         }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      
-      if (initialSession?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', initialSession.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (!error && profile) {
-              const typedProfile = profile as Profile;
-              
-              setUser({
-                id: initialSession.user.id,
-                email: initialSession.user.email,
-                name: typedProfile.name || initialSession.user.user_metadata?.name || 'User',
-                role: (typedProfile.role as UserRole) || 'user',
-                phone: typedProfile.phone,
-                phoneVerified: typedProfile.phone_verified
-              });
-            } else {
-              setUser({
-                id: initialSession.user.id,
-                email: initialSession.user.email,
-                name: initialSession.user.user_metadata?.name || 'User',
-                role: 'user',
-                phone: null,
-                phoneVerified: false
-              });
-            }
-            setIsLoading(false);
-          });
-      } else {
+      } catch (error) {
+        console.error('Error checking session:', error);
+        setUser(null);
+        setSession(null);
+      } finally {
         setIsLoading(false);
       }
-    });
-
-    return () => {
-      subscription.unsubscribe();
     };
+    
+    initializeApp();
   }, []);
   
   const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data } = await apiClient.post('/auth/login', {
         email,
         password,
       });
       
-      if (error) throw error;
+      setUser(data.user);
+      setSession(data.session as Session);
+      
+      // Store session in localStorage for API client interceptor
+      localStorage.setItem('supabase.auth.token', JSON.stringify({
+        currentSession: data.session
+      }));
       
       toast({
         title: "Login successful",
-        description: `Welcome back${data.user?.user_metadata?.name ? ', ' + data.user.user_metadata.name : ''}!`,
+        description: `Welcome back${data.user.name ? ', ' + data.user.name : ''}!`,
       });
 
       navigate("/user/dashboard", { replace: true });
@@ -161,7 +100,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       toast({
         variant: "destructive",
         title: "Login failed",
-        description: error.message || "Please check your credentials and try again",
+        description: error.response?.data?.error || "Please check your credentials and try again",
       });
       throw error;
     }
@@ -169,15 +108,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const register = async (email: string, password: string, name: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data } = await apiClient.post('/auth/register', {
         email,
         password,
-        options: {
-          data: { name }
-        }
+        name
       });
       
-      if (error) throw error;
+      setUser(data.user);
+      setSession(data.session as Session);
+      
+      // Store session in localStorage for API client interceptor
+      localStorage.setItem('supabase.auth.token', JSON.stringify({
+        currentSession: data.session
+      }));
       
       toast({
         title: "Registration successful",
@@ -190,30 +133,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       toast({
         variant: "destructive",
         title: "Registration failed",
-        description: error.message || "Please try again later",
+        description: error.response?.data?.error || "Please try again later",
       });
       throw error;
     }
   };
 
   const loginWithProvider = async (provider: Provider) => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      
-      if (error) throw error;
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: `${provider} login failed`,
-        description: error.message || "Please try again later",
-      });
-      throw error;
-    }
+    // For now, we'll just show a toast explaining this isn't implemented yet
+    toast({
+      variant: "destructive",
+      title: `${provider} login not implemented`,
+      description: "Social login functionality is not available in the Flask backend yet.",
+    });
   };
 
   const loginWithGoogle = () => loginWithProvider('google');
@@ -223,25 +155,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const formattedPhone = `+91${phone}`;
+      const { data } = await apiClient.post('/auth/verify-phone', {
+        phone,
+        otp,
+        name,
+        user_id: user?.id
+      });
       
-      if (user) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ 
-            phone: formattedPhone,
-            phone_verified: true,
-            name: name || user.name
-          } as Profile)
-          .eq('id', user.id);
-        
-        if (error) throw error;
-        
+      if (data.success) {
         setUser(prev => prev ? {
           ...prev,
-          phone: formattedPhone,
-          phoneVerified: true,
-          name: name || prev.name || 'User'
+          phone: data.profile.phone,
+          phoneVerified: data.profile.phoneVerified,
+          name: data.profile.name || prev.name || 'User'
         } : null);
         
         toast({
@@ -251,7 +177,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         navigate("/user/dashboard");
       } else {
-        throw new Error("No authenticated user found");
+        throw new Error(data.error || "Verification failed");
       }
     } catch (error: any) {
       toast({
@@ -267,7 +193,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      await apiClient.post('/auth/logout');
+      
+      // Clear local storage
+      localStorage.removeItem('supabase.auth.token');
+      
       setUser(null);
       setSession(null);
       

@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Appointment } from "@/types/supabase";
+import apiClient from "@/api/client";
 import { format } from "date-fns";
 
 interface AppointmentDisplay {
@@ -40,30 +39,20 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
       if (!userId) return [];
 
       try {
-        const { data, error } = await supabase
-          .from('appointments')
-          .select(`
-            *,
-            dietitian:profiles!dietitian_id(name)
-          `)
-          .eq('user_id', userId)
-          .order('appointment_date', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching appointments:', error);
-          throw error;
+        const { data } = await apiClient.get(`/appointments?user_id=${userId}`);
+        
+        if (data.error) {
+          throw new Error(data.error);
         }
-
-        return data.map((appointment) => ({
+        
+        return data.appointments.map((appointment: any) => ({
           id: appointment.id,
-          date: new Date(`${appointment.appointment_date}T${convertTo24HourFormat(appointment.appointment_time || '12:00 PM')}:00`),
-          dietitianName: appointment.dietitian?.name || "Dr. Sarah Johnson",
-          // Determine appointment type from notes or reason
-          type: determineAppointmentType(appointment.notes || appointment.reason),
-          // Hard-coded duration since it's not in the database
-          duration: 30, 
-          status: appointment.status || "pending",
-          notes: appointment.reason || ""
+          date: new Date(appointment.date),
+          dietitianName: appointment.dietitianName,
+          type: appointment.type as "video" | "in-person" | "phone",
+          duration: appointment.duration,
+          status: appointment.status,
+          notes: appointment.notes
         }));
       } catch (error) {
         console.error('Failed to fetch appointments:', error);
@@ -92,25 +81,15 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
         userId 
       });
       
-      // Only include fields that exist in the database schema
-      const appointmentData = {
-        appointment_date: format(date, "yyyy-MM-dd"),
-        appointment_time: time,
-        status: 'requested',
-        reason: `${type} consultation request`,
-        notes: `${type} session requested by client`,
-        user_id: userId,
-        dietitian_id: null // Default value for now
-      };
-
-      const { data, error } = await supabase
-        .from('appointments')
-        .insert(appointmentData)
-        .select();
-
-      if (error) {
-        console.error("Appointment creation error:", error);
-        throw error;
+      const { data } = await apiClient.post('/appointments', {
+        date: format(date, "yyyy-MM-dd"),
+        time,
+        type,
+        userId
+      });
+      
+      if (data.error) {
+        throw new Error(data.error);
       }
       
       return data;
@@ -136,13 +115,14 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
   // Cancel appointment mutation
   const cancelAppointment = useMutation({
     mutationFn: async (appointmentId: string) => {
-      const { data, error } = await supabase
-        .from('appointments')
-        .update({ status: 'cancelled' })
-        .eq('id', appointmentId)
-        .select();
-
-      if (error) throw error;
+      const { data } = await apiClient.put(`/appointments/${appointmentId}`, {
+        status: 'cancelled'
+      });
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -160,31 +140,6 @@ export const useAppointments = ({ userId, isAuthenticated }: UseAppointmentsProp
       });
     }
   });
-
-  // Helper function to determine appointment type
-  const determineAppointmentType = (notes: string | null): "video" | "in-person" | "phone" => {
-    if (!notes) return "in-person";
-    const notesLower = notes.toLowerCase();
-    if (notesLower.includes('video')) return "video";
-    if (notesLower.includes('phone')) return "phone";
-    return "in-person";
-  };
-
-  // Helper function to convert time formats
-  const convertTo24HourFormat = (time12h: string): string => {
-    const [time, modifier] = time12h.split(' ');
-    let [hours, minutes] = time.split(':');
-    
-    if (hours === '12') {
-      hours = '00';
-    }
-    
-    if (modifier === 'PM') {
-      hours = String(parseInt(hours, 10) + 12);
-    }
-    
-    return `${hours}:${minutes}`;
-  };
 
   return {
     appointments,

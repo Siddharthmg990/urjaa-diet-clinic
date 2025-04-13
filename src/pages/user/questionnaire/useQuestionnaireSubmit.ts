@@ -2,10 +2,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, initializeStorage } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { QuestionnaireFormData } from "./types";
 import { useFileUpload } from "@/hooks/use-file-upload";
+import apiClient from "@/api/client";
 
 export const useQuestionnaireSubmit = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +40,8 @@ export const useQuestionnaireSubmit = () => {
         throw new Error("User not authenticated");
       }
       
-      // Ensure storage is initialized before upload
-      await initializeStorage();
+      // Initialize storage before upload
+      await apiClient.post('/storage/initialize');
       
       console.log("Uploading photos and medical reports...");
       
@@ -81,40 +81,39 @@ export const useQuestionnaireSubmit = () => {
         });
       }
       
-      console.log("Inserting health assessment");
-      const { data, error } = await supabase
-        .from('health_assessments')
-        .insert([{
-          user_id: user.id,
-          full_name: formData.fullName,
-          age: formData.age,
-          height: formData.height,
-          height_unit: formData.heightUnit,
-          weight: formData.weight,
-          weight_unit: formData.weightUnit,
-          sex: formData.sex,
-          city: formData.city,
-          health_concerns: formData.healthConcerns,
-          medical_conditions: formData.medicalConditions,
-          other_condition: formData.otherCondition,
-          diet_type: formData.dietType,
-          wakeup_time: formData.wakeupTime,
-          sleep_time: formData.sleepTime,
-          profession: formData.profession,
-          occupation: formData.occupation,
-          leave_home_time: formData.leaveHomeTime,
-          return_home_time: formData.returnHomeTime,
-          break_times: formData.breakTimes,
-          working_hours: formData.workingHours,
-          meals: formData.meals,
-          activities: formData.activities,
-          photo_urls: photoUrls,
-          medical_report_urls: reportUrls
-        }]);
+      console.log("Submitting health assessment");
       
-      if (error) {
-        console.error("Health assessment insert error:", error);
-        throw error;
+      // Submit health assessment via API
+      const { data } = await apiClient.post('/health-assessment', {
+        user_id: user.id,
+        fullName: formData.fullName,
+        age: formData.age,
+        height: formData.height,
+        heightUnit: formData.heightUnit,
+        weight: formData.weight,
+        weightUnit: formData.weightUnit,
+        sex: formData.sex,
+        city: formData.city,
+        healthConcerns: formData.healthConcerns,
+        medicalConditions: formData.medicalConditions,
+        otherCondition: formData.otherCondition,
+        dietType: formData.dietType,
+        wakeupTime: formData.wakeupTime,
+        sleepTime: formData.sleepTime,
+        profession: formData.profession,
+        occupation: formData.occupation,
+        leaveHomeTime: formData.leaveHomeTime,
+        returnHomeTime: formData.returnHomeTime,
+        breakTimes: formData.breakTimes,
+        workingHours: formData.workingHours,
+        meals: formData.meals,
+        activities: formData.activities,
+        photo_urls: photoUrls,
+        medical_report_urls: reportUrls
+      });
+      
+      if (data.error) {
+        throw new Error(data.error);
       }
       
       toast({

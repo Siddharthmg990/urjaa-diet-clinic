@@ -1,24 +1,14 @@
 
-import { supabase, initializeStorage } from '@/integrations/supabase/client';
+import apiClient from "@/api/client";
 
 // This function runs once when the application loads
 export const setupAppOnLoad = async () => {
   try {
     // Initialize storage bucket immediately, regardless of auth state
-    await initializeStorage();
+    const { data } = await apiClient.post('/storage/initialize');
     
-    // Get the current session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // Set up listener for auth state changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log("User signed in, ensuring storage is initialized...");
-        await initializeStorage();
-      }
-    });
-    
-    return true;
+    // Return success status from API
+    return data.success || false;
   } catch (error) {
     console.error("Error setting up application:", error);
     return false;
